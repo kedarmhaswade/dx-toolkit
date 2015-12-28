@@ -235,6 +235,13 @@ public class DXFile extends DXDataObject {
         super(fileId, "file", env, null);
     }
 
+    public void upload(byte[] data) {
+    }
+
+    public byte[] download() {
+        return null;
+    }
+
     @Override
     public DXFile close() {
         super.close();

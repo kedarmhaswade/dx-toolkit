@@ -162,4 +162,22 @@ public class DXFileTest {
         Assert.assertEquals("application/json", file.describe().getMediaType());
     }
 
+    @Test
+    public void testUploadDownload() {
+        DXFile f = DXFile.newFile().setProject(testProject).build();
+        String uploadData = "Test";
+        byte[] uploadBytes = uploadData.getBytes();
+
+        // upload
+        f.upload(uploadBytes);
+        f.closeAndWait();
+
+
+        // download
+        byte[] downloadBytes = f.download();
+
+        // compare upload and download byte array
+        Assert.assertEquals(downloadBytes, uploadBytes);
+
+    }
 }
