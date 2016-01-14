@@ -16,16 +16,21 @@
 
 package com.dnanexus;
 
-import java.util.Map;
+import java.lang.*;
+import java.security.*;
+import java.util.*;
 
 import com.dnanexus.DXHTTPRequest.RetryStrategy;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import org.apache.http.Header;
+import org.apache.http.client.methods.HttpPost;
 
 /**
  * A file (an opaque sequence of bytes).
@@ -236,6 +241,44 @@ public class DXFile extends DXDataObject {
     }
 
     public void upload(byte[] data) {
+        byte [] dataMD5 = new byte[data.length];
+        // Write contents to new file
+        DXFile f = DXFile.newFile().build();
+
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            dataMD5 = md.digest(data);
+        } catch(NoSuchAlgorithmException e) {
+            System.err.println("MD5 is not a valid message digest algorithm");
+        }
+
+        Map inputValues = new HashMap();
+        inputValues.put("size", data.length);
+        inputValues.put("md5", dataMD5);
+        JsonNode input = MAPPER.valueToTree(inputValues);
+
+        JsonNode output = apiCallOnObject("upload", input, RetryStrategy.SAFE_TO_RETRY);
+
+        // PUT method - HTTPRequest
+        String url = new String();
+        try {
+            MAPPER.writeValueAsString(output.get("url"));
+        } catch(JsonProcessingException e) {
+            System.err.println(e);
+        }
+        HttpPost request = new HttpPost(url);
+        Iterator<Map.Entry<String, JsonNode>> iterator = output.fields();
+        while(iterator.hasNext()) {
+            Map.Entry<String, JsonNode> headers = iterator.next();
+            try {
+                request.setHeader(headers.getKey(), MAPPER.writeValueAsString(headers.getValue()));
+            } catch(JsonProcessingException e) {
+                System.err.println(e);
+            }
+        }
+
+        // Close file
+        f.closeAndWait();
     }
 
     public byte[] download() {
