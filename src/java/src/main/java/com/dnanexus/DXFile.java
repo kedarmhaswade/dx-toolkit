@@ -16,7 +16,9 @@
 
 package com.dnanexus;
 
+import java.io.*;
 import java.lang.*;
+import java.nio.charset.Charset;
 import java.security.*;
 import java.util.*;
 
@@ -29,8 +31,18 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.Header;
-import org.apache.http.client.methods.HttpPost;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.util.EntityUtils;
 
 /**
  * A file (an opaque sequence of bytes).
@@ -240,49 +252,98 @@ public class DXFile extends DXDataObject {
         super(fileId, "file", env, null);
     }
 
+    private static final String USER_AGENT = DXUserAgent.getUserAgent();
+
     public void upload(byte[] data) {
-        byte [] dataMD5 = new byte[data.length];
-        // Write contents to new file
-        DXFile f = DXFile.newFile().build();
+        HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
 
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            dataMD5 = md.digest(data);
-        } catch(NoSuchAlgorithmException e) {
-            System.err.println("MD5 is not a valid message digest algorithm");
-        }
-
+        // Inputs to /file-xxxx/upload API call
         Map inputValues = new HashMap();
         inputValues.put("size", data.length);
+        String dataMD5 = new String();
+        dataMD5 = DigestUtils.md5Hex(data); // MD5 digest as 32 character hex string
         inputValues.put("md5", dataMD5);
         JsonNode input = MAPPER.valueToTree(inputValues);
 
+        // API call returns URL and headers
         JsonNode output = apiCallOnObject("upload", input, RetryStrategy.SAFE_TO_RETRY);
 
-        // PUT method - HTTPRequest
         String url = new String();
         try {
-            MAPPER.writeValueAsString(output.get("url"));
+            url = MAPPER.writeValueAsString(output.get("url"));
+            url = url.replace("\"", "");
         } catch(JsonProcessingException e) {
             System.err.println(e);
         }
-        HttpPost request = new HttpPost(url);
-        Iterator<Map.Entry<String, JsonNode>> iterator = output.fields();
-        while(iterator.hasNext()) {
+
+        // HTTP PUT request to upload URL
+        HttpPut request = new HttpPut(url);
+        Iterator<Map.Entry<String, JsonNode>> iterator = output.get("headers").fields();
+        while (iterator.hasNext()) {
             Map.Entry<String, JsonNode> headers = iterator.next();
             try {
-                request.setHeader(headers.getKey(), MAPPER.writeValueAsString(headers.getValue()));
-            } catch(JsonProcessingException e) {
+                String key = headers.getKey();
+
+                // "content-length" field already in headers, so skip over
+                if (key == "content-length") continue;
+
+                String value = MAPPER.writeValueAsString(headers.getValue());
+                value = value.replace("\"", "");
+
+                request.setHeader(key, value);
+            } catch (JsonProcessingException e) {
                 System.err.println(e);
             }
         }
+        String stringData = new String(data);
+        request.setEntity(new StringEntity(stringData, Charset.forName("UTF-8")));
 
-        // Close file
-        f.closeAndWait();
+        try {
+            HttpResponse response = httpclient.execute(request);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        //this.closeAndWait();
     }
 
+    // TODO: set project ID containing the file to be downloaded
     public byte[] download() {
-        return null;
+        HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
+
+        // Inputs to /file-xxxx/download API call
+        Map inputValues = new HashMap();
+        inputValues.put("preauthenticated", true);
+        JsonNode input = MAPPER.valueToTree(inputValues);
+
+        // API call returns URL for HTTP GET requests
+        JsonNode output = apiCallOnObject("download", input, RetryStrategy.SAFE_TO_RETRY);
+
+        String url = new String();
+        try {
+            url = MAPPER.writeValueAsString(output.get("url"));
+            url = url.replace("\"", "");
+        } catch(JsonProcessingException e) {
+            System.err.println(e);
+        }
+
+        // HTTP GET request to download URL
+        HttpGet request = new HttpGet(url);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try {
+            HttpResponse response = httpclient.execute(request);
+            InputStream content = response.getEntity().getContent();
+            try {
+                IOUtils.copy(content, baos);
+            } finally {
+                content.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        byte[] data = baos.toByteArray();
+
+        return data;
     }
 
     @Override

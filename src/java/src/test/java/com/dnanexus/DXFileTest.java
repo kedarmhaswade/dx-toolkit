@@ -17,11 +17,13 @@
 package com.dnanexus;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import com.dnanexus.DXDataObject.DescribeOptions;
 import com.dnanexus.DXFile.Describe;
@@ -162,22 +164,42 @@ public class DXFileTest {
         Assert.assertEquals("application/json", file.describe().getMediaType());
     }
 
+    @Test(expected= Exception.class)
+    public void testDownloadFileNegative() {
+        DXFile f = DXFile.newFile().setProject(testProject).build();
+
+        // Nothing uploaded. Download should fail.
+        byte[] downloadBytes = f.download();
+    }
+
     @Test
-    public void testUploadDownload() {
+    public void testUploadDownloadSimple() {
+        // With string data
         DXFile f = DXFile.newFile().setProject(testProject).build();
         String uploadData = "Test";
         byte[] uploadBytes = uploadData.getBytes();
 
-        // upload
         f.upload(uploadBytes);
         f.closeAndWait();
 
-
-        // download
         byte[] downloadBytes = f.download();
 
-        // compare upload and download byte array
-        Assert.assertEquals(downloadBytes, uploadBytes);
+        Arrays.equals(downloadBytes, uploadBytes);
 
+        // Download again
+        downloadBytes = f.download();
+        Arrays.equals(downloadBytes, uploadBytes);
+
+        // With empty file
+        DXFile f2 = DXFile.newFile().setProject(testProject).build();
+        String uploadData2 = new String();
+        byte[] uploadBytes2 = uploadData2.getBytes();
+
+        f2.upload(uploadBytes2);
+        f2.closeAndWait();
+
+        byte[] downloadBytes2 = f2.download();
+
+        Arrays.equals(downloadBytes2, uploadBytes2);
     }
 }
