@@ -16,365 +16,424 @@
 
 package com.dnanexus;
 
-import java.io.*;
-import java.lang.*;
-import java.nio.charset.Charset;
-import java.security.*;
-import java.util.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.impl.client.HttpClientBuilder;
 
 import com.dnanexus.DXHTTPRequest.RetryStrategy;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.io.IOUtils;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPut;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.util.EntityUtils;
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.ByteStreams;
 
 /**
  * A file (an opaque sequence of bytes).
  *
- * <p>
- * Note that these Java bindings do not supply any high-level way to upload or download data to or
- * from a file. Please use the command-line tools <code>dx upload</code> and
- * <code>dx download</code>, or see the <a
- * href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Files">API documentation for files</a>.
- * </p>
  */
 public class DXFile extends DXDataObject {
 
-    /**
-     * Builder class for creating a new {@code DXFile} object. To obtain an instance, call
-     * {@link DXFile#newFile()}.
-     */
-    public static class Builder extends DXDataObject.Builder<Builder, DXFile> {
-        private String media;
+	/**
+	 * Builder class for creating a new {@code DXFile} object. To obtain an
+	 * instance, call {@link DXFile#newFile()}.
+	 */
+	public static class Builder extends DXDataObject.Builder<Builder, DXFile> {
+		private String media;
+		private byte[] uploadDataBytes;
+		private InputStream uploadDataStream;
 
-        private Builder() {
-            super();
-        }
+		private Builder() {
+			super();
+		}
 
-        private Builder(DXEnvironment env) {
-            super(env);
-        }
+		private Builder(DXEnvironment env) {
+			super(env);
+		}
 
-        /**
-         * Creates the file.
-         *
-         * @return a {@code DXFile} object corresponding to the newly created object
-         */
-        @Override
-        public DXFile build() {
-            return new DXFile(DXAPI.fileNew(this.buildRequestHash(), ObjectNewResponse.class,
-                    this.env).getId(), this.project, this.env, null);
-        }
+		/**
+		 * Creates the file.
+		 *
+		 * @return a {@code DXFile} object corresponding to the newly created
+		 *         object
+		 */
+		@Override
+		public DXFile build() {
+			DXFile file = new DXFile(DXAPI.fileNew(this.buildRequestHash(), ObjectNewResponse.class, this.env).getId(),
+					this.project, this.env, null);
+			
+			try {
+				if (uploadDataBytes != null) {
+					file.upload(uploadDataBytes);
+				} else if (uploadDataStream != null) {
+					file.upload(uploadDataStream);
+				}
+			} catch (IOException e) {
+			}
+			return file;
+		}
 
-        /**
-         * Use this method to test the JSON hash created by a particular builder call without
-         * actually executing the request.
-         *
-         * @return a JsonNode
-         */
-        @VisibleForTesting
-        JsonNode buildRequestHash() {
-            checkAndFixParameters();
-            return MAPPER.valueToTree(new FileNewRequest(this));
-        }
+		/**
+		 * Use this method to test the JSON hash created by a particular builder
+		 * call without actually executing the request.
+		 *
+		 * @return a JsonNode
+		 */
+		@VisibleForTesting
+		JsonNode buildRequestHash() {
+			checkAndFixParameters();
+			return MAPPER.valueToTree(new FileNewRequest(this));
+		}
 
-        /*
-         * (non-Javadoc)
-         *
-         * @see com.dnanexus.DXDataObject.Builder#getThisInstance()
-         */
-        @Override
-        protected Builder getThisInstance() {
-            return this;
-        }
+		/*
+		 * (non-Javadoc)
+		 *
+		 * @see com.dnanexus.DXDataObject.Builder#getThisInstance()
+		 */
+		@Override
+		protected Builder getThisInstance() {
+			return this;
+		}
 
-        /**
-         * Sets the Internet Media Type of the file to be created.
-         *
-         * @param mediaType Internet Media Type
-         *
-         * @return the same {@code Builder} object
-         */
-        public Builder setMediaType(String mediaType) {
-            Preconditions.checkState(this.media == null, "Cannot call setMediaType more than once");
-            this.media = Preconditions.checkNotNull(mediaType, "mediaType may not be null");
-            return getThisInstance();
-        }
+		/**
+		 * Sets the Internet Media Type of the file to be created.
+		 *
+		 * @param mediaType
+		 *            Internet Media Type
+		 *
+		 * @return the same {@code Builder} object
+		 */
+		public Builder setMediaType(String mediaType) {
+			Preconditions.checkState(this.media == null, "Cannot call setMediaType more than once");
+			this.media = Preconditions.checkNotNull(mediaType, "mediaType may not be null");
+			return getThisInstance();
+		}
+		
+		/**
+		 * Uploads bytes data to file to be created
+		 * 
+		 * @param uploadData
+		 * 				Data to be uploaded
+		 * 
+		 * @return the same {@code Builder} object
+		 */
+		public Builder upload(byte[] data){
+			Preconditions.checkState(this.uploadDataBytes == null, "Cannot call uploadData more than once");
+			this.uploadDataBytes = Preconditions.checkNotNull(data, "uploadData may not be null");
+			return getThisInstance();
+		}
+		
+		/**
+		 * Uploads bytes data to file to be created
+		 * 
+		 * @param uploadData
+		 * 				Data to be uploaded
+		 * 
+		 * @return the same {@code Builder} object
+		 */
+		public Builder upload(InputStream data){
+			Preconditions.checkState(this.uploadDataStream == null, "Cannot call uploadData more than once");
+			this.uploadDataStream = Preconditions.checkNotNull(data, "uploadData may not be null");
+			return getThisInstance();
+		}
+	}
 
-    }
+	/**
+	 * Contains metadata for a file.
+	 */
+	public static class Describe extends DXDataObject.Describe {
+		@JsonProperty
+		private String media;
 
-    /**
-     * Contains metadata for a file.
-     */
-    public static class Describe extends DXDataObject.Describe {
-        @JsonProperty
-        private String media;
+		private Describe() {
+			super();
+		}
 
-        private Describe() {
-            super();
-        }
+		/**
+		 * Returns the Internet Media Type of the file.
+		 *
+		 * @return Internet Media Type
+		 */
+		public String getMediaType() {
+			Preconditions.checkState(this.media != null,
+					"media type is not accessible because it was not retrieved with the describe call");
+			return media;
+		}
+	}
 
-        /**
-         * Returns the Internet Media Type of the file.
-         *
-         * @return Internet Media Type
-         */
-        public String getMediaType() {
-            Preconditions.checkState(this.media != null,
-                    "media type is not accessible because it was not retrieved with the describe call");
-            return media;
-        }
-    }
+	@JsonInclude(Include.NON_NULL)
+	private static class FileNewRequest extends DataObjectNewRequest {
+		@JsonProperty
+		private final String media;
 
-    @JsonInclude(Include.NON_NULL)
-    private static class FileNewRequest extends DataObjectNewRequest {
-        @JsonProperty
-        private final String media;
+		public FileNewRequest(Builder builder) {
+			super(builder);
+			this.media = builder.media;
+		}
+	}
 
-        public FileNewRequest(Builder builder) {
-            super(builder);
-            this.media = builder.media;
-        }
-    }
+	/**
+	 * Deserializes a DXFile from JSON containing a DNAnexus link.
+	 *
+	 * @param value
+	 *            JSON object map
+	 *
+	 * @return data object
+	 */
+	@JsonCreator
+	private static DXFile create(Map<String, Object> value) {
+		checkDXLinkFormat(value);
+		// TODO: how to set the environment?
+		return DXFile.getInstance((String) value.get("$dnanexus_link"));
+	}
 
-    /**
-     * Deserializes a DXFile from JSON containing a DNAnexus link.
-     *
-     * @param value JSON object map
-     *
-     * @return data object
-     */
-    @JsonCreator
-    private static DXFile create(Map<String, Object> value) {
-        checkDXLinkFormat(value);
-        // TODO: how to set the environment?
-        return DXFile.getInstance((String) value.get("$dnanexus_link"));
-    }
+	/**
+	 * Returns a {@code DXFile} associated with an existing file.
+	 *
+	 * @throws NullPointerException
+	 *             If {@code fileId} is null
+	 */
+	public static DXFile getInstance(String fileId) {
+		return new DXFile(fileId, null);
+	}
 
-    /**
-     * Returns a {@code DXFile} associated with an existing file.
-     *
-     * @throws NullPointerException If {@code fileId} is null
-     */
-    public static DXFile getInstance(String fileId) {
-        return new DXFile(fileId, null);
-    }
+	/**
+	 * Returns a {@code DXFile} associated with an existing file in a particular
+	 * project or container.
+	 *
+	 * @throws NullPointerException
+	 *             If {@code fileId} or {@code container} is null
+	 */
+	public static DXFile getInstance(String fileId, DXContainer project) {
+		return new DXFile(fileId, project, null, null);
+	}
 
-    /**
-     * Returns a {@code DXFile} associated with an existing file in a particular project or
-     * container.
-     *
-     * @throws NullPointerException If {@code fileId} or {@code container} is null
-     */
-    public static DXFile getInstance(String fileId, DXContainer project) {
-        return new DXFile(fileId, project, null, null);
-    }
+	/**
+	 * Returns a {@code DXFile} associated with an existing file in a particular
+	 * project using the specified environment, with the specified cached
+	 * describe output.
+	 *
+	 * <p>
+	 * This method is for use exclusively by bindings to the "find" routes when
+	 * describe hashes are returned with the find output.
+	 * </p>
+	 *
+	 * @throws NullPointerException
+	 *             If any argument is null
+	 */
+	static DXFile getInstanceWithCachedDescribe(String fileId, DXContainer project, DXEnvironment env,
+			JsonNode describe) {
+		return new DXFile(fileId, project, Preconditions.checkNotNull(env, "env may not be null"),
+				Preconditions.checkNotNull(describe, "describe may not be null"));
+	}
 
-    /**
-     * Returns a {@code DXFile} associated with an existing file in a particular project using the
-     * specified environment, with the specified cached describe output.
-     *
-     * <p>
-     * This method is for use exclusively by bindings to the "find" routes when describe hashes are
-     * returned with the find output.
-     * </p>
-     *
-     * @throws NullPointerException If any argument is null
-     */
-    static DXFile getInstanceWithCachedDescribe(String fileId, DXContainer project,
-            DXEnvironment env, JsonNode describe) {
-        return new DXFile(fileId, project, Preconditions.checkNotNull(env, "env may not be null"),
-                Preconditions.checkNotNull(describe, "describe may not be null"));
-    }
+	/**
+	 * Returns a {@code DXFile} associated with an existing file in a particular
+	 * project using the specified environment.
+	 *
+	 * @throws NullPointerException
+	 *             If {@code fileId} or {@code container} is null
+	 */
+	public static DXFile getInstanceWithEnvironment(String fileId, DXContainer project, DXEnvironment env) {
+		return new DXFile(fileId, project, Preconditions.checkNotNull(env, "env may not be null"), null);
+	}
 
-    /**
-     * Returns a {@code DXFile} associated with an existing file in a particular project using the
-     * specified environment.
-     *
-     * @throws NullPointerException If {@code fileId} or {@code container} is null
-     */
-    public static DXFile getInstanceWithEnvironment(String fileId, DXContainer project,
-            DXEnvironment env) {
-        return new DXFile(fileId, project, Preconditions.checkNotNull(env, "env may not be null"),
-                null);
-    }
+	/**
+	 * Returns a {@code DXFile} associated with an existing file using the
+	 * specified environment.
+	 *
+	 * @throws NullPointerException
+	 *             If {@code fileId} is null
+	 */
+	public static DXFile getInstanceWithEnvironment(String fileId, DXEnvironment env) {
+		return new DXFile(fileId, Preconditions.checkNotNull(env, "env may not be null"));
+	}
 
-    /**
-     * Returns a {@code DXFile} associated with an existing file using the specified environment.
-     *
-     * @throws NullPointerException If {@code fileId} is null
-     */
-    public static DXFile getInstanceWithEnvironment(String fileId, DXEnvironment env) {
-        return new DXFile(fileId, Preconditions.checkNotNull(env, "env may not be null"));
-    }
+	/**
+	 * Returns a Builder object for creating a new {@code DXFile}.
+	 *
+	 * @return a newly initialized builder object
+	 */
+	public static Builder newFile() {
+		return new Builder();
+	}
 
-    /**
-     * Returns a Builder object for creating a new {@code DXFile}.
-     *
-     * @return a newly initialized builder object
-     */
-    public static Builder newFile() {
-        return new Builder();
-    }
+	/**
+	 * Returns a Builder object for creating a new {@code DXFile} using the
+	 * specified environment.
+	 *
+	 * @param env
+	 *            environment to use to make API calls
+	 *
+	 * @return a newly initialized builder object
+	 */
+	public static Builder newFileWithEnvironment(DXEnvironment env) {
+		return new Builder(env);
+	}
 
-    /**
-     * Returns a Builder object for creating a new {@code DXFile} using the specified environment.
-     *
-     * @param env environment to use to make API calls
-     *
-     * @return a newly initialized builder object
-     */
-    public static Builder newFileWithEnvironment(DXEnvironment env) {
-        return new Builder(env);
-    }
+	private DXFile(String fileId, DXContainer project, DXEnvironment env, JsonNode describe) {
+		super(fileId, "file", project, env, describe);
+	}
 
-    private DXFile(String fileId, DXContainer project, DXEnvironment env, JsonNode describe) {
-        super(fileId, "file", project, env, describe);
-    }
+	private DXFile(String fileId, DXEnvironment env) {
+		super(fileId, "file", env, null);
+	}
+	
+	private static final String USER_AGENT = DXUserAgent.getUserAgent();
+	
+	/**
+	 * Request to /file-xxxx/upload
+	 */
+	@JsonInclude(Include.NON_NULL)
+	private static class fileUploadRequest {
+		@JsonProperty
+		private int size;
+		@JsonProperty
+		private String md5;
+		
+		private fileUploadRequest(int size, String md5) {
+			this.size = size;
+			this.md5 = md5;
+		}
+	}	
+	
+	/**
+	 * Uploads byte array data to the file
+	 * 
+	 * @param data
+	 *            data to be uploaded
+	 * @throws ClientProtocolException
+	 */
+	public void upload(byte[] data) throws ClientProtocolException {
+		// Inputs to /file-xxxx/upload API call
+		String dataMD5 = DigestUtils.md5Hex(data); // MD5 digest as 32 character
+												   // hex string
 
-    private DXFile(String fileId, DXEnvironment env) {
-        super(fileId, "file", env, null);
-    }
+		// API call returns URL and headers
+		JsonNode output = apiCallOnObject("upload",
+				MAPPER.valueToTree(new fileUploadRequest(data.length, dataMD5)),
+				RetryStrategy.SAFE_TO_RETRY);
+		String url = output.get("url").asText();
 
-    private static final String USER_AGENT = DXUserAgent.getUserAgent();
+		// HTTP PUT request to upload URL and headers
+		HttpPut request = new HttpPut(url);
+		Iterator<Entry<String, JsonNode>> iterator = output.get("headers").fields();
+		ImmutableList<Entry<String, JsonNode>> headers = ImmutableList.copyOf(iterator);
 
-    public void upload(byte[] data) {
-        HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
+		for (Entry<String, JsonNode> entry : headers) {
+			String key = entry.getKey();
+			String value = entry.getValue().asText();
 
-        // Inputs to /file-xxxx/upload API call
-        Map inputValues = new HashMap();
-        inputValues.put("size", data.length);
-        String dataMD5 = new String();
-        dataMD5 = DigestUtils.md5Hex(data); // MD5 digest as 32 character hex string
-        inputValues.put("md5", dataMD5);
-        JsonNode input = MAPPER.valueToTree(inputValues);
+			if (key.equals("content-length"))
+				continue;
+			request.setHeader(key, value);
+		}
 
-        // API call returns URL and headers
-        JsonNode output = apiCallOnObject("upload", input, RetryStrategy.SAFE_TO_RETRY);
+		request.setEntity(new ByteArrayEntity(data));
 
-        String url = new String();
-        try {
-            url = MAPPER.writeValueAsString(output.get("url"));
-            url = url.replace("\"", "");
-        } catch(JsonProcessingException e) {
-            System.err.println(e);
-        }
+		// TODO: assert that apiserver given content-length is the same as the
+		// content-length given in the input data
+		HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
+		try {
+			httpclient.execute(request);
+		} catch (IOException e) {
+			throw new ClientProtocolException();
+		}
+	}
+	
+	public void upload(InputStream data) throws IOException {
+		this.upload(ByteStreams.toByteArray(data));
+	}
 
-        // HTTP PUT request to upload URL
-        HttpPut request = new HttpPut(url);
-        Iterator<Map.Entry<String, JsonNode>> iterator = output.get("headers").fields();
-        while (iterator.hasNext()) {
-            Map.Entry<String, JsonNode> headers = iterator.next();
-            try {
-                String key = headers.getKey();
+	/**
+	 * Request to /file-xxxx/download
+	 */
+	@JsonInclude(Include.NON_NULL)
+	private static class fileDownloadRequest {
+		@JsonProperty("preauthenticated")
+		private boolean preauth;
+		
+		private fileDownloadRequest(boolean preauth) {
+			this.preauth = preauth;
+			this.preauth = preauth;
+		}
+	}	
+	
+	// TODO: set project ID containing the file to be downloaded
+	public byte[] downloadBytes() throws IOException {
+		// API call returns URL for HTTP GET requests
+		JsonNode output = apiCallOnObject("download", MAPPER.valueToTree(new fileDownloadRequest(true)),
+				RetryStrategy.SAFE_TO_RETRY);
+		String url = output.get("url").asText();
 
-                // "content-length" field already in headers, so skip over
-                if (key == "content-length") continue;
+		// HTTP GET request to download URL
+		HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
+		HttpGet request = new HttpGet(url);
+		InputStream content = null;
+		try {
+			HttpResponse response = httpclient.execute(request);
+			content = response.getEntity().getContent();
+		} catch (IOException e) {
+			throw new RuntimeException();
+		}
+		
+		byte[] data = IOUtils.toByteArray(content);
+		content.close();
 
-                String value = MAPPER.writeValueAsString(headers.getValue());
-                value = value.replace("\"", "");
+		return data;
+	}
+	
+	public ByteArrayOutputStream downloadStream() throws IOException {
+		byte[] dataBytes = this.downloadBytes();
+		ByteArrayOutputStream data = new ByteArrayOutputStream(dataBytes.length);
+		data.write(dataBytes, 0, dataBytes.length);
 
-                request.setHeader(key, value);
-            } catch (JsonProcessingException e) {
-                System.err.println(e);
-            }
-        }
-        String stringData = new String(data);
-        request.setEntity(new StringEntity(stringData, Charset.forName("UTF-8")));
+		return data;
+	}
 
-        try {
-            HttpResponse response = httpclient.execute(request);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+	@Override
+	public DXFile close() {
+		super.close();
+		return this;
+	}
 
-        //this.closeAndWait();
-    }
+	@Override
+	public DXFile closeAndWait() {
+		super.closeAndWait();
+		return this;
+	}
 
-    // TODO: set project ID containing the file to be downloaded
-    public byte[] download() {
-        HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
+	@Override
+	public Describe describe() {
+		return DXJSON.safeTreeToValue(apiCallOnObject("describe", RetryStrategy.SAFE_TO_RETRY), Describe.class);
+	}
 
-        // Inputs to /file-xxxx/download API call
-        Map inputValues = new HashMap();
-        inputValues.put("preauthenticated", true);
-        JsonNode input = MAPPER.valueToTree(inputValues);
+	@Override
+	public Describe describe(DescribeOptions options) {
+		return DXJSON.safeTreeToValue(
+				apiCallOnObject("describe", MAPPER.valueToTree(options), RetryStrategy.SAFE_TO_RETRY), Describe.class);
+	}
 
-        // API call returns URL for HTTP GET requests
-        JsonNode output = apiCallOnObject("download", input, RetryStrategy.SAFE_TO_RETRY);
-
-        String url = new String();
-        try {
-            url = MAPPER.writeValueAsString(output.get("url"));
-            url = url.replace("\"", "");
-        } catch(JsonProcessingException e) {
-            System.err.println(e);
-        }
-
-        // HTTP GET request to download URL
-        HttpGet request = new HttpGet(url);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            HttpResponse response = httpclient.execute(request);
-            InputStream content = response.getEntity().getContent();
-            try {
-                IOUtils.copy(content, baos);
-            } finally {
-                content.close();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        byte[] data = baos.toByteArray();
-
-        return data;
-    }
-
-    @Override
-    public DXFile close() {
-        super.close();
-        return this;
-    }
-
-    @Override
-    public DXFile closeAndWait() {
-        super.closeAndWait();
-        return this;
-    }
-
-    @Override
-    public Describe describe() {
-        return DXJSON.safeTreeToValue(apiCallOnObject("describe", RetryStrategy.SAFE_TO_RETRY),
-                Describe.class);
-    }
-
-    @Override
-    public Describe describe(DescribeOptions options) {
-        return DXJSON.safeTreeToValue(
-                apiCallOnObject("describe", MAPPER.valueToTree(options),
-                        RetryStrategy.SAFE_TO_RETRY), Describe.class);
-    }
-
-    @Override
-    public Describe getCachedDescribe() {
-        this.checkCachedDescribeAvailable();
-        return DXJSON.safeTreeToValue(this.cachedDescribe, Describe.class);
-    }
+	@Override
+	public Describe getCachedDescribe() {
+		this.checkCachedDescribeAvailable();
+		return DXJSON.safeTreeToValue(this.cachedDescribe, Describe.class);
+	}
 
 }

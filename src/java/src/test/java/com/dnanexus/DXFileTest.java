@@ -17,13 +17,13 @@
 package com.dnanexus;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.io.InputStream;
 
+import org.apache.commons.io.IOUtils;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dnanexus.DXDataObject.DescribeOptions;
 import com.dnanexus.DXFile.Describe;
@@ -164,16 +164,16 @@ public class DXFileTest {
         Assert.assertEquals("application/json", file.describe().getMediaType());
     }
 
-    @Test(expected= Exception.class)
-    public void testDownloadFileNegative() {
+    @Test(expected=Exception.class)
+    public void testDownloadFileNegative() throws IOException {
         DXFile f = DXFile.newFile().setProject(testProject).build();
 
         // Nothing uploaded. Download should fail.
-        byte[] downloadBytes = f.download();
+        f.downloadBytes();
     }
 
     @Test
-    public void testUploadDownloadSimple() {
+    public void testUploadBytesDownloadBytes() throws IOException {
         // With string data
         DXFile f = DXFile.newFile().setProject(testProject).build();
         String uploadData = "Test";
@@ -181,25 +181,146 @@ public class DXFileTest {
 
         f.upload(uploadBytes);
         f.closeAndWait();
+        byte[] downloadBytes = f.downloadBytes();
 
-        byte[] downloadBytes = f.download();
-
-        Arrays.equals(downloadBytes, uploadBytes);
+        Assert.assertArrayEquals(uploadBytes, downloadBytes);
 
         // Download again
-        downloadBytes = f.download();
-        Arrays.equals(downloadBytes, uploadBytes);
+        downloadBytes = f.downloadBytes();
+        Assert.assertArrayEquals(uploadBytes, downloadBytes);
+    }
+    
+    @Test
+    public void testUploadStreamDownloadBytes() throws IOException {
+        // With string data
+        DXFile f = DXFile.newFile().setProject(testProject).build();
+        String uploadData = "Test";
+        InputStream uploadStream = IOUtils.toInputStream(uploadData);
 
-        // With empty file
-        DXFile f2 = DXFile.newFile().setProject(testProject).build();
-        String uploadData2 = new String();
-        byte[] uploadBytes2 = uploadData2.getBytes();
+        f.upload(uploadStream);
+        f.closeAndWait();
+        byte[] downloadBytes = f.downloadBytes();
 
-        f2.upload(uploadBytes2);
-        f2.closeAndWait();
+        Assert.assertArrayEquals(uploadData.getBytes(), downloadBytes);
 
-        byte[] downloadBytes2 = f2.download();
+        // Download again
+        downloadBytes = f.downloadBytes();
+        Assert.assertArrayEquals(uploadData.getBytes(), downloadBytes);
+    }
+    
+    @Test
+    public void testUploadBytesDownloadStream() throws IOException {
+    	// With string data
+        DXFile f = DXFile.newFile().setProject(testProject).build();
+        String uploadData = "Test";
+        byte[] uploadBytes = uploadData.getBytes();
 
-        Arrays.equals(downloadBytes2, uploadBytes2);
+        f.upload(uploadBytes);
+        f.closeAndWait();
+        byte[] downloadStream = f.downloadStream().toByteArray();
+        
+        Assert.assertArrayEquals(uploadBytes, downloadStream);
+        
+        // Download again
+        downloadStream = f.downloadStream().toByteArray();
+        Assert.assertArrayEquals(uploadBytes, downloadStream);
+    }
+    
+    @Test
+    public void testUploadStreamDownloadStream() throws IOException {
+    	// With string data
+    	DXFile f = DXFile.newFile().setProject(testProject).build();
+        String uploadData = "Test";
+        InputStream uploadStream = IOUtils.toInputStream(uploadData);
+        
+        f.upload(uploadStream);
+        f.closeAndWait();
+        byte[] downloadStream = f.downloadStream().toByteArray();
+        
+        Assert.assertArrayEquals(uploadData.getBytes(), downloadStream);
+        
+        // Download again
+        downloadStream = f.downloadStream().toByteArray();
+        Assert.assertArrayEquals(uploadData.getBytes(), downloadStream);
+        
+    }
+    
+    @Test
+    public void testUploadDownloadEmpty() throws IOException {
+        // Upload bytes, download bytes
+    	DXFile f = DXFile.newFile().setProject(testProject).build();
+        String uploadData = "";
+        byte[] uploadBytes = uploadData.getBytes();
+
+        f.upload(uploadBytes);
+        f.closeAndWait();
+        byte[] downloadBytes = f.downloadBytes();
+
+        Assert.assertArrayEquals(uploadBytes, downloadBytes);
+        
+        // Upload stream, download bytes
+        f = DXFile.newFile().setProject(testProject).build();
+        InputStream uploadStream = IOUtils.toInputStream(uploadData);
+        
+        f.upload(uploadStream);
+        f.closeAndWait();
+        downloadBytes = f.downloadBytes();
+        
+        Assert.assertArrayEquals(uploadBytes, downloadBytes);
+        
+        // Upload bytes, download stream
+        f = DXFile.newFile().setProject(testProject).build();
+        
+        f.upload(uploadBytes);
+        f.closeAndWait();
+        byte[] downloadStream = f.downloadStream().toByteArray();
+        
+        Assert.assertArrayEquals(uploadData.getBytes(), downloadStream);
+        
+        // Upload stream, download stream
+        f = DXFile.newFile().setProject(testProject).build();
+        
+        f.upload(uploadStream);
+        f.closeAndWait();
+        downloadStream = f.downloadStream().toByteArray();
+        
+        Assert.assertArrayEquals(uploadData.getBytes(), downloadStream);
+    }
+    
+    @Test
+    public void testUploadDownloadBuilder() throws IOException {
+    	// Upload bytes
+    	String uploadData = "Test";
+        byte[] uploadBytes = uploadData.getBytes();
+    	DXFile f = DXFile.newFile().setProject(testProject).upload(uploadBytes).build().closeAndWait();
+    	
+    	byte[] downloadBytes = f.downloadBytes();
+    	
+    	Assert.assertArrayEquals(uploadBytes, downloadBytes);
+    	
+    	// Upload stream
+    	InputStream uploadStream = IOUtils.toInputStream(uploadData);
+    	f = DXFile.newFile().setProject(testProject).upload(uploadStream).build().closeAndWait();
+    	
+    	downloadBytes = f.downloadBytes();
+    	
+    	Assert.assertArrayEquals(uploadBytes, downloadBytes);
+    	
+    	// Upload bytes with empty string
+    	uploadData = "";
+    	uploadBytes = uploadData.getBytes();
+    	f = DXFile.newFile().setProject(testProject).upload(uploadBytes).build().closeAndWait();
+    	
+    	downloadBytes = f.downloadBytes();
+    	
+    	Assert.assertArrayEquals(uploadBytes, downloadBytes);
+    	
+    	// Upload stream with empty string
+    	uploadStream = IOUtils.toInputStream(uploadData);
+    	f = DXFile.newFile().setProject(testProject).upload(uploadStream).build().closeAndWait();
+    	
+    	downloadBytes = f.downloadBytes();
+    	
+    	Assert.assertArrayEquals(uploadBytes, downloadBytes);
     }
 }
