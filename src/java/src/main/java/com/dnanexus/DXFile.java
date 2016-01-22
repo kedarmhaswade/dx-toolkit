@@ -16,43 +16,37 @@
 
 package com.dnanexus;
 
-import java.io.*;
-import java.lang.*;
-import java.nio.charset.Charset;
-import java.security.*;
-import java.util.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.impl.client.HttpClientBuilder;
 
 import com.dnanexus.DXHTTPRequest.RetryStrategy;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.io.IOUtils;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPut;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.util.EntityUtils;
+import com.google.common.collect.ImmutableList;
+
 
 /**
  * A file (an opaque sequence of bytes).
  *
- * <p>
- * Note that these Java bindings do not supply any high-level way to upload or download data to or
- * from a file. Please use the command-line tools <code>dx upload</code> and
- * <code>dx download</code>, or see the <a
- * href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Files">API documentation for files</a>.
- * </p>
  */
 public class DXFile extends DXDataObject {
 
@@ -254,49 +248,38 @@ public class DXFile extends DXDataObject {
 
     private static final String USER_AGENT = DXUserAgent.getUserAgent();
 
+    /**
+     * Uploads byte array data from a file
+     * 
+     * @param data data to be uploaded
+     */
     public void upload(byte[] data) {
         HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
 
         // Inputs to /file-xxxx/upload API call
-        Map inputValues = new HashMap();
+        Map<String, Object> inputValues = new HashMap<String, Object>();
         inputValues.put("size", data.length);
-        String dataMD5 = new String();
-        dataMD5 = DigestUtils.md5Hex(data); // MD5 digest as 32 character hex string
+        String dataMD5 = DigestUtils.md5Hex(data); // MD5 digest as 32 character hex string
         inputValues.put("md5", dataMD5);
         JsonNode input = MAPPER.valueToTree(inputValues);
 
         // API call returns URL and headers
         JsonNode output = apiCallOnObject("upload", input, RetryStrategy.SAFE_TO_RETRY);
+        String url = output.get("url").asText();
 
-        String url = new String();
-        try {
-            url = MAPPER.writeValueAsString(output.get("url"));
-            url = url.replace("\"", "");
-        } catch(JsonProcessingException e) {
-            System.err.println(e);
-        }
-
-        // HTTP PUT request to upload URL
+        // HTTP PUT request to upload URL and headers
         HttpPut request = new HttpPut(url);
-        Iterator<Map.Entry<String, JsonNode>> iterator = output.get("headers").fields();
-        while (iterator.hasNext()) {
-            Map.Entry<String, JsonNode> headers = iterator.next();
-            try {
-                String key = headers.getKey();
+        Iterator<Entry<String, JsonNode>> iterator = output.get("headers").fields();
+        ImmutableList<Entry<String, JsonNode>> headers = ImmutableList.copyOf(iterator);
 
-                // "content-length" field already in headers, so skip over
-                if (key == "content-length") continue;
+        for (Entry<String, JsonNode> entry : headers) {
+			String key = entry.getKey();
+			String value = entry.getValue().asText();
 
-                String value = MAPPER.writeValueAsString(headers.getValue());
-                value = value.replace("\"", "");
-
-                request.setHeader(key, value);
-            } catch (JsonProcessingException e) {
-                System.err.println(e);
-            }
-        }
-        String stringData = new String(data);
-        request.setEntity(new StringEntity(stringData, Charset.forName("UTF-8")));
+			request.setHeader(key, value);
+		}
+        
+        request.setEntity(new ByteArrayEntity(data));
 
         try {
             HttpResponse response = httpclient.execute(request);
@@ -318,14 +301,7 @@ public class DXFile extends DXDataObject {
 
         // API call returns URL for HTTP GET requests
         JsonNode output = apiCallOnObject("download", input, RetryStrategy.SAFE_TO_RETRY);
-
-        String url = new String();
-        try {
-            url = MAPPER.writeValueAsString(output.get("url"));
-            url = url.replace("\"", "");
-        } catch(JsonProcessingException e) {
-            System.err.println(e);
-        }
+        String url = output.get("url").asText();
 
         // HTTP GET request to download URL
         HttpGet request = new HttpGet(url);
