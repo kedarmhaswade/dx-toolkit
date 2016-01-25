@@ -32,7 +32,7 @@ from ..utils.describe import (get_find_executions_string, get_ls_l_desc, parse_t
 from ..utils.resolver import (get_first_pos_of_char, is_hashid, is_job_id, is_localjob_id, paginate_and_pick, pick,
                               resolve_existing_path, resolve_multiple_existing_paths, split_unescaped, is_analysis_id)
 from ..utils import OrderedDefaultdict
-from ..compat import input, str, shlex, basestring
+from ..compat import input, str, shlex, basestring, USING_PYTHON2
 
 ####################
 # -i Input Parsing #
@@ -549,6 +549,8 @@ class ExecutableInputs(object):
             else:
                 try:
                     parsed_input_value = json.loads(input_value, object_pairs_hook=collections.OrderedDict)
+                    if not USING_PYTHON2:
+                        long = int
                     if type(parsed_input_value) not in (collections.OrderedDict, list, int, long, float):
                         raise Exception()
                 except:
