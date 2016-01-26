@@ -355,8 +355,6 @@ public class DXFile extends DXDataObject {
 
 		request.setEntity(new ByteArrayEntity(data));
 
-		// TODO: assert that apiserver given content-length is the same as the
-		// content-length given in the input data
 		HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
 		try {
 			httpclient.execute(request);
