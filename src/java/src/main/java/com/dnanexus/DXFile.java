@@ -330,6 +330,14 @@ public class DXFile extends DXDataObject {
 				MAPPER.valueToTree(new fileUploadRequest(data.length, dataMD5)),
 				RetryStrategy.SAFE_TO_RETRY);
 		String url = output.get("url").asText();
+		
+		// Check that the content-length received by the apiserver is the same
+		// as the length of the data
+		Integer apiserverContentLength = Integer.parseInt(output.get("headers").findValue("content-length").asText());
+		if (apiserverContentLength != data.length) {
+			throw new ClientProtocolException(
+					"Content-length received by the apiserver did not match that of the input data");
+		}
 
 		// HTTP PUT request to upload URL and headers
 		HttpPut request = new HttpPut(url);
