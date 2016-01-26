@@ -29,6 +29,7 @@ install:
   - make java
 
 script:
+  - (cd src/java; mvn -Dtest=DXJSONTest,InputAndOutputParameterTest test)
   - source environment
   - dx env
   - dx help all > /dev/null
