@@ -16,17 +16,15 @@
 
 package com.dnanexus;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPut;
@@ -35,13 +33,14 @@ import org.apache.http.impl.client.HttpClientBuilder;
 
 import com.dnanexus.DXHTTPRequest.RetryStrategy;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
 
 /**
@@ -56,8 +55,7 @@ public class DXFile extends DXDataObject {
 	 */
 	public static class Builder extends DXDataObject.Builder<Builder, DXFile> {
 		private String media;
-		private byte[] uploadDataBytes;
-		private InputStream uploadDataStream;
+		private InputStream uploadData;
 
 		private Builder() {
 			super();
@@ -79,13 +77,13 @@ public class DXFile extends DXDataObject {
 					this.project, this.env, null);
 			
 			try {
-				if (uploadDataBytes != null) {
-					file.upload(uploadDataBytes);
-				} else if (uploadDataStream != null) {
-					file.upload(uploadDataStream);
+				if (uploadData != null) {
+					file.upload(uploadData);
 				}
 			} catch (IOException e) {
+				throw new RuntimeException(e);
 			}
+			
 			return file;
 		}
 
@@ -126,30 +124,29 @@ public class DXFile extends DXDataObject {
 		}
 		
 		/**
-		 * Uploads bytes data to file to be created
+		 * Uploads the data in the specified byte array to file to be created
 		 * 
-		 * @param uploadData
+		 * @param data
 		 * 				Data to be uploaded
 		 * 
 		 * @return the same {@code Builder} object
 		 */
 		public Builder upload(byte[] data){
-			Preconditions.checkState(this.uploadDataBytes == null, "Cannot call uploadData more than once");
-			this.uploadDataBytes = Preconditions.checkNotNull(data, "uploadData may not be null");
-			return getThisInstance();
+			InputStream dataStream = new ByteArrayInputStream(data);
+			return this.upload(dataStream);
 		}
 		
 		/**
-		 * Uploads bytes data to file to be created
+		 * Uploads the data in the specified stream to the file to be created
 		 * 
-		 * @param uploadData
-		 * 				Data to be uploaded
+		 * @param data
+		 * 				Stream containing data to be uploaded
 		 * 
 		 * @return the same {@code Builder} object
 		 */
 		public Builder upload(InputStream data){
-			Preconditions.checkState(this.uploadDataStream == null, "Cannot call uploadData more than once");
-			this.uploadDataStream = Preconditions.checkNotNull(data, "uploadData may not be null");
+			Preconditions.checkState(this.uploadData == null, "Cannot call upload more than once");
+			this.uploadData = Preconditions.checkNotNull(data, "uploadData may not be null");
 			return getThisInstance();
 		}
 	}
@@ -311,58 +308,73 @@ public class DXFile extends DXDataObject {
 			this.size = size;
 			this.md5 = md5;
 		}
-	}	
+	}
+	
+	/**
+	 * Request to /file-xxxx/upload
+	 */
+	@VisibleForTesting
+    @JsonIgnoreProperties(ignoreUnknown = true)
+	static class fileUploadResponse {
+		@JsonProperty
+		private String url;
+		
+		@JsonProperty
+		private Map<String, String> headers;
+	}
 	
 	/**
 	 * Uploads byte array data to the file
 	 * 
 	 * @param data
 	 *            data to be uploaded
-	 * @throws ClientProtocolException
+	 * @throws JsonProcessingException 
 	 */
-	public void upload(byte[] data) throws ClientProtocolException {
-		// Inputs to /file-xxxx/upload API call
-		String dataMD5 = DigestUtils.md5Hex(data); // MD5 digest as 32 character
-												   // hex string
+	public void upload(byte[] data) throws JsonProcessingException {
+		// MD5 digest as 32 character hex string
+		String dataMD5 = DigestUtils.md5Hex(data);
 
 		// API call returns URL and headers
 		JsonNode output = apiCallOnObject("upload",
 				MAPPER.valueToTree(new fileUploadRequest(data.length, dataMD5)),
 				RetryStrategy.SAFE_TO_RETRY);
-		String url = output.get("url").asText();
+				
+		fileUploadResponse apiResponse = MAPPER.treeToValue(output, fileUploadResponse.class);
 		
 		// Check that the content-length received by the apiserver is the same
 		// as the length of the data
-		Integer apiserverContentLength = Integer.parseInt(output.get("headers").findValue("content-length").asText());
+		Integer apiserverContentLength = Integer.parseInt(apiResponse.headers.get("content-length"));
 		if (apiserverContentLength != data.length) {
-			throw new ClientProtocolException(
+			throw new AssertionError(
 					"Content-length received by the apiserver did not match that of the input data");
 		}
 
 		// HTTP PUT request to upload URL and headers
-		HttpPut request = new HttpPut(url);
-		Iterator<Entry<String, JsonNode>> iterator = output.get("headers").fields();
-		ImmutableList<Entry<String, JsonNode>> headers = ImmutableList.copyOf(iterator);
-
-		for (Entry<String, JsonNode> entry : headers) {
-			String key = entry.getKey();
-			String value = entry.getValue().asText();
-
-			if (key.equals("content-length"))
+		HttpPut request = new HttpPut(apiResponse.url);
+		for (Map.Entry<String, String> header: apiResponse.headers.entrySet()) {
+			String key = header.getKey();
+			if (key.equals("content-length")) {
 				continue;
-			request.setHeader(key, value);
+			}
+			request.setHeader(key, header.getValue());
 		}
 
 		request.setEntity(new ByteArrayEntity(data));
-
+		
 		HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
 		try {
 			httpclient.execute(request);
 		} catch (IOException e) {
-			throw new ClientProtocolException();
+			throw new RuntimeException();
 		}
 	}
 	
+	/**
+	 * Uploads data from stream to the file
+	 * 
+	 * @param data data from stream to be uploaded
+	 * @throws IOException
+	 */
 	public void upload(InputStream data) throws IOException {
 		this.upload(ByteStreams.toByteArray(data));
 	}
@@ -377,20 +389,36 @@ public class DXFile extends DXDataObject {
 		
 		private fileDownloadRequest(boolean preauth) {
 			this.preauth = preauth;
-			this.preauth = preauth;
 		}
-	}	
+	}
 	
+	/**
+	 * Deserialized output from the /file-xxxx/download route.
+	 */
+	@VisibleForTesting
+    @JsonIgnoreProperties(ignoreUnknown = true)
+	static class fileDownloadResponse {
+		@JsonProperty
+		private String url;
+	}
+	
+	/**
+	 * Downloads data from file
+	 * 
+	 * @return byte array containing data
+	 * @throws IOException
+	 */
 	// TODO: set project ID containing the file to be downloaded
 	public byte[] downloadBytes() throws IOException {
 		// API call returns URL for HTTP GET requests
 		JsonNode output = apiCallOnObject("download", MAPPER.valueToTree(new fileDownloadRequest(true)),
 				RetryStrategy.SAFE_TO_RETRY);
-		String url = output.get("url").asText();
+				
+		fileDownloadResponse apiResponse = MAPPER.treeToValue(output, fileDownloadResponse.class);
 
 		// HTTP GET request to download URL
 		HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
-		HttpGet request = new HttpGet(url);
+		HttpGet request = new HttpGet(apiResponse.url);
 		InputStream content = null;
 		try {
 			HttpResponse response = httpclient.execute(request);
@@ -405,6 +433,12 @@ public class DXFile extends DXDataObject {
 		return data;
 	}
 	
+	/**
+	 * Downloads stream containing data from file
+	 * 
+	 * @return stream containing data
+	 * @throws IOException
+	 */
 	public ByteArrayOutputStream downloadStream() throws IOException {
 		byte[] dataBytes = this.downloadBytes();
 		ByteArrayOutputStream data = new ByteArrayOutputStream(dataBytes.length);
