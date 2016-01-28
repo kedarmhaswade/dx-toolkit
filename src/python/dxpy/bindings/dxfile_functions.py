@@ -112,7 +112,14 @@ def download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append
         download_dxfile("file-xxxx", "localfilename.fastq")
 
     '''
+    # retry the inner loop while there are retriable errors
+    retval = False
+    while not retval:
+        retval = _download_dxfile(dxfile, filename, chunksize=chunksize, append=append,
+                                  show_progress=show_progress, project=project, **kwargs)
 
+def _download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append=False, show_progress=False,
+                    project=None, **kwargs):
     def print_progress(bytes_downloaded, file_size, action="Downloaded"):
         num_ticks = 60
 
@@ -266,17 +273,19 @@ def download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append
         print(traceback.format_exc(), file=sys.stderr)
         _download_retry_counter[part_gid] -= 1
         if _download_retry_counter[part_gid] > 0:
+            fh.close()
             print("Retrying {} ({} tries remain)".format(dxfile.get_id(), _download_retry_counter[part_gid]),
                   file=sys.stderr)
-            return download_dxfile(dxfile, filename, chunksize=chunksize, append=append,
-                                   show_progress=show_progress, project=project, **kwargs)
+            return False
+#            return download_dxfile(dxfile, filename, chunksize=chunksize, append=append,
+#                                   show_progress=show_progress, project=project, **kwargs)
         raise
 
     if show_progress:
         sys.stderr.write("\n")
 
     fh.close()
-
+    return True
 
 def _get_buffer_size_for_file(file_size, file_is_mmapd=False):
     """Returns an upload buffer size that is appropriate to use for a file
