@@ -248,8 +248,6 @@ def download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append
         dxfile._ensure_http_threadpool()
         for chunk_part, chunk_data in response_iterator(chunk_requests(), dxfile._http_threadpool):
             if chunk_part != cur_part:
-                if (cur_part is None and int(chunk_part) != 1):
-                    raise AssertionError("First part is not one ({})".format(chunk_part))
                 if (cur_part is not None and int(chunk_part) != int(cur_part) + 1):
                     raise AssertionError("Expecting part {}, got part {}".format(int(cur_part)+1, chunk_part))
                 verify_part(cur_part, got_bytes, hasher)
