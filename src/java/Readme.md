@@ -5,7 +5,7 @@ DXJava: DNAnexus Java API
 
 [Javadocs](http://autodoc.dnanexus.com/bindings/java/current/)
 
-[Examples of DNAnexus Platform apps written in Java](../doc/examples/dx-java-apps)
+[Examples of DNAnexus Platform apps written in Java](../../doc/examples/dx-java-apps)
 
 Development
 -----------
