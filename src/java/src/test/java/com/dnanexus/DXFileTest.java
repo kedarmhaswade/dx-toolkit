@@ -214,7 +214,6 @@ public class DXFileTest {
         // Download again
         downloadStream = f.downloadStream().toByteArray();      
         Assert.assertArrayEquals(uploadData.getBytes(), downloadStream);
-        
     }
     
     @Test
