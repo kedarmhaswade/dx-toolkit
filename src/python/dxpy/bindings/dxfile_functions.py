@@ -250,7 +250,7 @@ def download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append
             if chunk_part != cur_part:
                 if (cur_part is None and chunk_part > 0):
                     raise AssertionError("First part is not zero ({})".format(chunk_part))
-                if (cur_part is not None and chunk_part != cur_part + 1)):
+                if (cur_part is not None and chunk_part != cur_part + 1):
                     raise AssertionError("Expecting part {}, got part {}".format(cur_part+1, chunk_part))
                 verify_part(cur_part, got_bytes, hasher)
                 cur_part, got_bytes, hasher = chunk_part, 0, hashlib.md5()
