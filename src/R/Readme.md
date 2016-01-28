@@ -11,7 +11,7 @@ Build dependencies
     - RCurl
     - RJSONIO
 
-Building and Installing
+Building and installing
 -----------------------
 
 You should install the `RCurl` and `RJSONIO` packages if you have not

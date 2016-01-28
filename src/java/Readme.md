@@ -3,7 +3,7 @@ DXJava: DNAnexus Java API
 
 `DXJava` is compatible with Java 7 and higher.
 
-[Javadocs](http://autodoc.dnanexus.com/bindings/java/current/)
+[API Documentation](http://autodoc.dnanexus.com/bindings/java/current/)
 
 [Examples of DNAnexus Platform apps written in Java](../../doc/examples/dx-java-apps)
 
