@@ -37,7 +37,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -49,6 +48,7 @@ import com.google.common.io.ByteStreams;
  */
 public class DXFile extends DXDataObject {
 
+<<<<<<< HEAD
 	/**
 	 * Builder class for creating a new {@code DXFile} object. To obtain an
 	 * instance, call {@link DXFile#newFile()}.
@@ -75,7 +75,7 @@ public class DXFile extends DXDataObject {
 		public DXFile build() {
 			DXFile file = new DXFile(DXAPI.fileNew(this.buildRequestHash(), ObjectNewResponse.class, this.env).getId(),
 					this.project, this.env, null);
-			
+
 			try {
 				if (uploadData != null) {
 					file.upload(uploadData);
@@ -83,7 +83,7 @@ public class DXFile extends DXDataObject {
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
-			
+
 			return file;
 		}
 
@@ -122,26 +122,26 @@ public class DXFile extends DXDataObject {
 			this.media = Preconditions.checkNotNull(mediaType, "mediaType may not be null");
 			return getThisInstance();
 		}
-		
+
 		/**
 		 * Uploads the data in the specified byte array to file to be created
-		 * 
+		 *
 		 * @param data
 		 * 				Data to be uploaded
-		 * 
+		 *
 		 * @return the same {@code Builder} object
 		 */
 		public Builder upload(byte[] data){
 			InputStream dataStream = new ByteArrayInputStream(data);
 			return this.upload(dataStream);
 		}
-		
+
 		/**
 		 * Uploads the data in the specified stream to the file to be created
-		 * 
+		 *
 		 * @param data
 		 * 				Stream containing data to be uploaded
-		 * 
+		 *
 		 * @return the same {@code Builder} object
 		 */
 		public Builder upload(InputStream data){
@@ -291,9 +291,9 @@ public class DXFile extends DXDataObject {
 	private DXFile(String fileId, DXEnvironment env) {
 		super(fileId, "file", env, null);
 	}
-	
+
 	private static final String USER_AGENT = DXUserAgent.getUserAgent();
-	
+
 	/**
 	 * Request to /file-xxxx/upload
 	 */
@@ -303,13 +303,13 @@ public class DXFile extends DXDataObject {
 		private int size;
 		@JsonProperty
 		private String md5;
-		
+
 		private fileUploadRequest(int size, String md5) {
 			this.size = size;
 			this.md5 = md5;
 		}
 	}
-	
+
 	/**
 	 * Request to /file-xxxx/upload
 	 */
@@ -318,17 +318,17 @@ public class DXFile extends DXDataObject {
 	static class fileUploadResponse {
 		@JsonProperty
 		private String url;
-		
+
 		@JsonProperty
 		private Map<String, String> headers;
 	}
-	
+
 	/**
 	 * Uploads byte array data to the file
-	 * 
+	 *
 	 * @param data
 	 *            data to be uploaded
-	 * @throws JsonProcessingException 
+	 * @throws JsonProcessingException
 	 */
 	public void upload(byte[] data) throws JsonProcessingException {
 		// MD5 digest as 32 character hex string
@@ -338,9 +338,9 @@ public class DXFile extends DXDataObject {
 		JsonNode output = apiCallOnObject("upload",
 				MAPPER.valueToTree(new fileUploadRequest(data.length, dataMD5)),
 				RetryStrategy.SAFE_TO_RETRY);
-				
+
 		fileUploadResponse apiResponse = MAPPER.treeToValue(output, fileUploadResponse.class);
-		
+
 		// Check that the content-length received by the apiserver is the same
 		// as the length of the data
 		Integer apiserverContentLength = Integer.parseInt(apiResponse.headers.get("content-length"));
@@ -360,7 +360,7 @@ public class DXFile extends DXDataObject {
 		}
 
 		request.setEntity(new ByteArrayEntity(data));
-		
+
 		HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
 		try {
 			httpclient.execute(request);
@@ -368,10 +368,10 @@ public class DXFile extends DXDataObject {
 			throw new RuntimeException();
 		}
 	}
-	
+
 	/**
 	 * Uploads data from stream to the file
-	 * 
+	 *
 	 * @param data data from stream to be uploaded
 	 * @throws IOException
 	 */
@@ -386,12 +386,12 @@ public class DXFile extends DXDataObject {
 	private static class fileDownloadRequest {
 		@JsonProperty("preauthenticated")
 		private boolean preauth;
-		
+
 		private fileDownloadRequest(boolean preauth) {
 			this.preauth = preauth;
 		}
 	}
-	
+
 	/**
 	 * Deserialized output from the /file-xxxx/download route.
 	 */
@@ -401,10 +401,10 @@ public class DXFile extends DXDataObject {
 		@JsonProperty
 		private String url;
 	}
-	
+
 	/**
 	 * Downloads data from file
-	 * 
+	 *
 	 * @return byte array containing data
 	 * @throws IOException
 	 */
@@ -413,7 +413,7 @@ public class DXFile extends DXDataObject {
 		// API call returns URL for HTTP GET requests
 		JsonNode output = apiCallOnObject("download", MAPPER.valueToTree(new fileDownloadRequest(true)),
 				RetryStrategy.SAFE_TO_RETRY);
-				
+
 		fileDownloadResponse apiResponse = MAPPER.treeToValue(output, fileDownloadResponse.class);
 
 		// HTTP GET request to download URL
@@ -426,16 +426,16 @@ public class DXFile extends DXDataObject {
 		} catch (IOException e) {
 			throw new RuntimeException();
 		}
-		
+
 		byte[] data = IOUtils.toByteArray(content);
 		content.close();
 
 		return data;
 	}
-	
+
 	/**
 	 * Downloads stream containing data from file
-	 * 
+	 *
 	 * @return stream containing data
 	 * @throws IOException
 	 */
@@ -475,5 +475,4 @@ public class DXFile extends DXDataObject {
 		this.checkCachedDescribeAvailable();
 		return DXJSON.safeTreeToValue(this.cachedDescribe, Describe.class);
 	}
-
 }
