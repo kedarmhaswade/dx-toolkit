@@ -27,6 +27,6 @@ To create a project for Eclipse development:
 ### Tests
 
 Ensure you have logged in to the platform with a valid token (for example,
-using `dx login`). Then, from from dx-toolkit/src/java:
+using `dx login`). Then:
 
-    mvn test
+    cd src/java; mvn test
