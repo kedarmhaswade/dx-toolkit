@@ -11,8 +11,8 @@ API language bindings and utilities for interacting with the DNAnexus platform.
 See https://wiki.dnanexus.com/ and http://autodoc.dnanexus.com/ for relevant
 documentation.
 
-Installing the toolkit
-----------------------
+Installing the toolkit from source
+----------------------------------
 
 First, see the section "Build dependencies" below and install the appropriate
 dependencies for your platform.
