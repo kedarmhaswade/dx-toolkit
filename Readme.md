@@ -38,7 +38,7 @@ The Platform SDK contains API language bindings for the following platforms:
 * [Python](src/python/Readme.md) (requires Python 2.7)
 * C++
 * Perl
-* [Java](src/java/Readme.md) (requires Java 7)
+* [Java](src/java/Readme.md) (requires Java 7 or higher)
 * [R](src/R/Readme.md)
 
 Javascript support lives in a separate repo,
