@@ -115,7 +115,7 @@ def download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append
     # retry the inner loop while there are retriable errors
     retval = False
     while not retval:
-        retval = _download_dxfile(dxfile, filename, chunksize=chunksize, append=append,
+        retval = _download_dxfile(dxid, filename, chunksize=chunksize, append=append,
                                   show_progress=show_progress, project=project, **kwargs)
 
 def _download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append=False, show_progress=False,
