@@ -193,7 +193,7 @@ _expected_exceptions = exceptions.network_exceptions + \
 
 def _get_pool_manager(verify, cert_file, key_file):
     global _pool_manager
-    default_pool_args = dict(maxsize=4,  # 32,
+    default_pool_args = dict(maxsize=32,
                              cert_reqs=ssl.CERT_REQUIRED,
                              ca_certs=_default_certs,
                              headers=_default_headers,
@@ -469,6 +469,7 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
             _get_pool_manager(**pool_args).clear()
             success = False
             exception_msg = _extract_msg_from_last_exception()
+            logger.info("Clearing request pool, caught exception {}".format(exception_msg))
             if isinstance(e, _expected_exceptions):
                 if response is not None and response.status == 503:
                     seconds_to_wait = _extract_retry_after_timeout(response)
