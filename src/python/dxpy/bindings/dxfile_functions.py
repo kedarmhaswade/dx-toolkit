@@ -200,6 +200,18 @@ def download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append
             print_progress(last_verified_pos, file_size, action="Resuming at")
         logger.debug("Verified %s/%d downloaded parts", last_verified_part, len(parts_to_get))
 
+    # This is a debugging function. It searches through the list of
+    # md5 hashes, and finds the (first) part-id that has this hash. If
+    # no part matches, None is returned.
+    def dbg_find_part_id_from_md5(md5hex):
+        for part_id in parts_to_get:
+            part_info = parts[part_id]
+            if "md5" not in part_info:
+                raise DXFileError("File {} does not contain part md5 checksums".format(dxfile.get_id()))
+            if md5hex == part_info["md5"]:
+                return part_id
+        return None
+
     def get_chunk(part_id_to_get, start, end):
         url, headers = dxfile.get_download_url(project=project, **kwargs)
         # If we're fetching the whole object in one shot, avoid setting the Range header to take advantage of gzip
@@ -226,8 +238,9 @@ def download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append
         if hasher is not None and "md5" not in parts[_part_id]:
             warnings.warn("Download of file {} is not being checked for integrity".format(dxfile.get_id()))
         elif hasher is not None and hasher.hexdigest() != parts[_part_id]["md5"]:
-            msg = "Checksum mismatch in {} part {} (expected {}, got {})"
-            msg = msg.format(dxfile.get_id(), _part_id, parts[_part_id]["md5"], hasher.hexdigest())
+            src_part = dbg_find_part_id_from_md5(hasher.hexdigest())
+            msg = "Checksum mismatch in {} part {} (expected {}, got {} matching part {})"
+            msg = msg.format(dxfile.get_id(), _part_id, parts[_part_id]["md5"], hasher.hexdigest(), src_part)
             raise DXChecksumMismatchError(msg)
 
     try:
