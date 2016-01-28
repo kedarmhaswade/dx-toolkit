@@ -193,7 +193,7 @@ _expected_exceptions = exceptions.network_exceptions + \
 
 def _get_pool_manager(verify, cert_file, key_file):
     global _pool_manager
-    default_pool_args = dict(maxsize=32,
+    default_pool_args = dict(maxsize=4,  # 32,
                              cert_reqs=ssl.CERT_REQUIRED,
                              ca_certs=_default_certs,
                              headers=_default_headers,
