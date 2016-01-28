@@ -2195,12 +2195,34 @@ class TestHTTPResponses(unittest.TestCase):
         dxpy.DXHTTPRequest("/system/whoami", {}, verify=False)
         dxpy.DXHTTPRequest("/system/whoami", {}, verify=requests.certs.where())
         dxpy.DXHTTPRequest("/system/whoami", {}, verify=requests.certs.where(), cert_file=None, key_file=None)
-        with self.assertRaisesRegexp(SSLError, "No such file or directory"):
-            dxpy.DXHTTPRequest("/system/whoami", {}, verify="f")
-        with self.assertRaisesRegexp(IOError, "No such file or directory"):
-            dxpy.DXHTTPRequest("/system/whoami", {}, cert_file="c")
         with self.assertRaises(TypeError):
-            dxpy.DXHTTPRequest("/system/whoami", {}, cert="f")
+            dxpy.DXHTTPRequest("/system/whoami", {}, cert="nonexistent")
+        if dxpy.APISERVER_PROTOCOL == "https":
+            with self.assertRaisesRegexp(SSLError, "file"):
+                dxpy.DXHTTPRequest("/system/whoami", {}, verify="nonexistent")
+            with self.assertRaisesRegexp((SSLError, IOError), "file"):
+                dxpy.DXHTTPRequest("/system/whoami", {}, cert_file="nonexistent")
+
+    def test_fake_errors(self):
+        dxpy.DXHTTPRequest('/system/fakeError', {'errorType': 'Valid JSON'}, always_retry=True)
+
+        # Minimal latency with retries, in seconds. This makes sure we actually did a retry.
+        min_sec_with_retries = 1
+        max_num_retries = 2
+        start_time = time.time()
+        with self.assertRaises(ValueError):
+            dxpy.DXHTTPRequest('/system/fakeError', {'errorType': 'Invalid JSON'},
+                               max_retries=max_num_retries, always_retry=True)
+        end_time = time.time()
+        self.assertGreater(end_time - start_time, min_sec_with_retries)
+
+        start_time = time.time()
+        with self.assertRaises(ValueError):
+            dxpy.DXHTTPRequest('/system/fakeError', {'errorType': 'Error not decodeable'},
+                               max_retries=max_num_retries, always_retry=True)
+        end_time = time.time()
+        self.assertGreater(end_time - start_time, min_sec_with_retries)
+
 
 class TestDataobjectFunctions(unittest.TestCase):
     def setUp(self):

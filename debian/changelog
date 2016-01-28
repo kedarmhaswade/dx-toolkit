@@ -1,3 +1,65 @@
+dx-toolkit (0.178.0) precise; urgency=low
+
+  * Install dxpy via wheel to avoid using pkg_resources (fixup for 87d6040)
+  * PTFM-17116 Add `help` of `dx find org *` in `dx find -h`
+  * PTFM-17118 Add new category for org-related commands
+  * PTFM-17115 Create new subparser to encapsulate org CLI commands
+  * Refactor parser registration
+  * PTFM-17228 Download curl source from github
+  * Fix hardcoded installation path in test suite (fixup for 87d6040)
+  * flake8 lint fixes
+  * Only monkey-patch easy_install wrapper scripts (fixup for 87d6040)
+  * Declare encoding in source file (fixup for 87d6040)
+  * Don't crash if old build products are absent (fixup for 87d6040)
+  * Bump futures dependency from v3.0.3 to v3.0.4
+  * Install test deps from setup.py (fixup for 87d6040)
+  * PyPy compatibility fixup for 87d6040
+  * Don't install futures backport on Python 3
+  * Fix Python 3 regression introduced in fb3a8d6
+  * PTFM-17184 refactor make python 
+
+ -- Kaveh Nafissi <knafissi@dnanexus.com>  Wed, 27 Jan 2016 22:53:14 +0000
+
+dx-toolkit (0.177.0) precise; urgency=low
+
+  * make python: don't instruct pip on how to use wheels
+  * dxpy: clean up and normalize exception descriptions
+  * Cleanup of exception handling for http errors
+  * Add missing subcommands to `dx sh` completer class
+  * Allow insecure download of Python on CentOS
+  * Fix changelog
+
+ -- Kaveh Nafissi <knafissi@dnanexus.com>  Thu, 21 Jan 2016 20:20:22 +0000
+
+dx-toolkit (0.176.0) precise; urgency=low
+
+  * PTFM-17107 Modify I/Os of "dx {add,remove,update} member"
+  * Fake errors generation and testing
+  * PTFM-17058 Be paranoid about closure variable scope
+  * dxpy: remove unneeded PyPI directive; indicate universal wheel
+  * Bump beautifulsoup4 dependency from v4.3.2 to v4.4.1
+  * Remove heading for empty section
+  * PTFM-17092 Demoting org member does not require membership permission flags
+  * Don't make any apps default to 14.04 yet
+  * Update test for a8d1911
+  * PTFM-16817 dx-app-wizard instance type selector
+  * PTFM-16894 Increment libcurl version to 7.45.0
+  * Update Readme.md
+  * Add omit-resources feature
+  * Fix tests for 571ce5c
+  * dxpy: Memoize CA certs location
+  * PTFM-16917 dxpy: Fix handling of SSL certificate options
+  * PTFM-16667 Remove /org-xxxx/getMemberAccess invocations from client
+  * Fix `dx new user` printing
+  * Update __future__ imports in Python API wrappers generator
+  * Use integer division in describe.py (fixup for 84f2346)
+  * PTFM-16905 dx update member optional level argument
+  * Increase entropy of random org handle generator used in unit tests
+  * Fix bug in `dx new user` with uppercase username args
+  * Fix copyright date in Sphinx docs
+
+ -- Kaveh Nafissi <knafissi@dnanexus.com>  Thu, 14 Jan 2016 23:58:53 +0000
+
 dx-toolkit (0.175.0) precise; urgency=low
 
   * Bug fixes

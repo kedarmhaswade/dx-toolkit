@@ -3899,32 +3899,32 @@ class TestDXClientFindInOrg(DXTestCase):
 
     def test_dx_find_org_members_negative(self):
         # No org id
-        with self.assertSubprocessFailure(stderr_regexp='dx find org_members: error: too few arguments', exit_code=2):
-            run("dx find org_members")
+        with self.assertSubprocessFailure(stderr_regexp='dx find org members: error: too few arguments', exit_code=2):
+            run("dx find org members")
 
         # No input to --level
         with self.assertSubprocessFailure(stderr_regexp='error: argument --level: expected one argument', exit_code=2):
-            run("dx find org_members org-piratelabs --level")
+            run("dx find org members org-piratelabs --level")
 
     def test_dx_find_org_members(self):
         org_members = [self.user_alice, self.user_bob]  # sorted ascending by user ID
         org_members.sort()
 
         # Basic test to check consistency of client output to directly invoking API
-        output = run("dx find org_members org-piratelabs --brief").strip().split("\n")
+        output = run("dx find org members org-piratelabs --brief").strip().split("\n")
         dx_api_output = dxpy.api.org_find_members(self.org_id)
         self.assertEqual(output, [member['id'] for member in dx_api_output['results']])
         self.assertEqual(output, org_members)
 
         # With --level flag
-        output = run("dx find org_members org-piratelabs --level {l} --brief".format(l="ADMIN")).strip().split("\n")
+        output = run("dx find org members org-piratelabs --level {l} --brief".format(l="ADMIN")).strip().split("\n")
         self.assertItemsEqual(output, [self.user_alice])
 
-        output = run("dx find org_members org-piratelabs --level {l} --brief".format(l="MEMBER")).strip().split("\n")
+        output = run("dx find org members org-piratelabs --level {l} --brief".format(l="MEMBER")).strip().split("\n")
         self.assertItemsEqual(output, [self.user_bob])
 
     def test_dx_find_org_members_format(self):
-        cmd = "dx find org_members org-piratelabs {opts}"
+        cmd = "dx find org members org-piratelabs {opts}"
 
         # Assert that only member ids are returned, line-separated
         output = run(cmd.format(opts="--brief")).strip().split("\n")
@@ -3960,7 +3960,7 @@ class TestDXClientFindInOrg(DXTestCase):
         self.assertEqual(output, expected)
 
     def test_dx_find_org_projects_invalid(self):
-        cmd = "dx find org_projects org-irrelevant {opts}"
+        cmd = "dx find org projects org-irrelevant {opts}"
 
         # --ids must contain at least one id.
         with self.assertSubprocessFailure(stderr_regexp='expected at least one argument', exit_code=2):
@@ -3988,36 +3988,36 @@ class TestDXClientFindInOrg(DXTestCase):
             self.assertEqual(dxpy.api.project_describe(project1_id)['billTo'], self.org_id)
 
             # Basic test to check consistency of client output to directly invoking API
-            output = run("dx find org_projects org-piratelabs --brief").strip().split("\n")
+            output = run("dx find org projects org-piratelabs --brief").strip().split("\n")
             dx_api_output = dxpy.api.org_find_projects(self.org_id)
             self.assertEqual(output, [result['id'] for result in dx_api_output['results']])
             self.assertItemsEqual(output, org_projects)
 
             # With --ids flag
-            output = run("dx find org_projects org-piratelabs --ids {p}".format(p=project2_id)).strip().split("\n")
+            output = run("dx find org projects org-piratelabs --ids {p}".format(p=project2_id)).strip().split("\n")
             self.assertItemsEqual(output, [''])
 
-            output = run("dx find org_projects org-piratelabs --ids {p} --brief".format(
+            output = run("dx find org projects org-piratelabs --ids {p} --brief".format(
                          p=project1_id)).strip().split("\n")
             self.assertItemsEqual(output, [project1_id])
 
-            output = run("dx find org_projects org-piratelabs --ids {p1} {p2} --brief".format(p1=project1_id,
+            output = run("dx find org projects org-piratelabs --ids {p1} {p2} --brief".format(p1=project1_id,
                          p2=project2_id)).strip().split("\n")
             self.assertItemsEqual(output, [project1_id])
 
             # With --tag
             dxpy.api.project_add_tags(project1_id, {'tags': ['tag-1', 'tag-2']})
             dxpy.api.project_add_tags(project2_id, {'tags': ['tag-1', 'tag-2']})
-            output = run("dx find org_projects org-piratelabs --tag {t1} --brief".format(
+            output = run("dx find org projects org-piratelabs --tag {t1} --brief".format(
                          t1='tag-1')).strip().split("\n")
             self.assertEqual(output, [project1_id])
 
             # With multiple --tag
-            output = run("dx find org_projects org-piratelabs --tag {t1} --tag {t2} --brief".format(t1='tag-1',
+            output = run("dx find org projects org-piratelabs --tag {t1} --tag {t2} --brief".format(t1='tag-1',
                          t2='tag-2')).strip().split("\n")
             self.assertEqual(output, [project1_id])
 
-            output = run("dx find org_projects org-piratelabs --tag {t1} --tag {t2} --brief".format(t1='tag-1',
+            output = run("dx find org projects org-piratelabs --tag {t1} --tag {t2} --brief".format(t1='tag-1',
                          t2='tag-3')).strip().split("\n")
             self.assertEqual(output, [""])
 
@@ -4026,16 +4026,16 @@ class TestDXClientFindInOrg(DXTestCase):
                                                           'value2'}})
             dxpy.api.project_set_properties(project2_id, {'properties': {'property-1': 'value1', 'property-2':
                                                           'value2'}})
-            output = run("dx find org_projects org-piratelabs --property {p1} --brief".format(
+            output = run("dx find org projects org-piratelabs --property {p1} --brief".format(
                          p1='property-1')).strip().split("\n")
             self.assertItemsEqual(output, [project1_id])
 
             # With multiple --property
-            output = run("dx find org_projects org-piratelabs --property {p1} --property {p2} --brief".format(
+            output = run("dx find org projects org-piratelabs --property {p1} --property {p2} --brief".format(
                          p1='property-1', p2='property-2')).strip().split("\n")
             self.assertItemsEqual(output, [project1_id])
 
-            output = run("dx find org_projects org-piratelabs --property {p1} --property {p2} --brief".format(
+            output = run("dx find org projects org-piratelabs --property {p1} --property {p2} --brief".format(
                          p1='property-1', p2='property-3')).strip().split("\n")
             self.assertItemsEqual(output, [""])
 
@@ -4048,7 +4048,7 @@ class TestDXClientFindInOrg(DXTestCase):
             # Assert that `p2` exists.
             self.assertEqual(dxpy.api.project_describe(p2.get_id(), {})["level"], "ADMINISTER")
 
-            cmd = "dx find org_projects org-piratelabs {opts} --brief"
+            cmd = "dx find org projects org-piratelabs {opts} --brief"
 
             output = run(cmd.format(opts="")).strip().split("\n")
             self.assertItemsEqual(output, [private_project_id, self.project_ppb])
@@ -4068,34 +4068,34 @@ class TestDXClientFindInOrg(DXTestCase):
             created = dxpy.api.project_describe(project_id)['created']
 
             # Test integer time stamp
-            self.assertItemsEqual(run("dx find org_projects org-piratelabs --created-before={cb} --brief".format(
+            self.assertItemsEqual(run("dx find org projects org-piratelabs --created-before={cb} --brief".format(
                                   cb=str(created + 1000))).strip().split("\n"), org_projects)
 
-            self.assertItemsEqual(run("dx find org_projects org-piratelabs --created-after={ca} --brief".format(
+            self.assertItemsEqual(run("dx find org projects org-piratelabs --created-after={ca} --brief".format(
                                   ca=str(created - 1000))).strip().split("\n"), [project_id])
 
-            self.assertItemsEqual(run("dx find org_projects org-piratelabs --created-after={ca} --created-before={cb} --brief".format(
+            self.assertItemsEqual(run("dx find org projects org-piratelabs --created-after={ca} --created-before={cb} --brief".format(
                                   ca=str(created - 1000), cb=str(created + 1000))).strip().split("\n"), [project_id])
 
-            self.assertItemsEqual(run("dx find org_projects org-piratelabs --created-before={cb} --brief".format(
+            self.assertItemsEqual(run("dx find org projects org-piratelabs --created-before={cb} --brief".format(
                                   cb=str(created - 1000))).strip().split("\n"), [self.project_ppb])
 
             # Test integer with suffix
-            self.assertItemsEqual(run("dx find org_projects org-piratelabs --created-before={cb} --brief".format(
+            self.assertItemsEqual(run("dx find org projects org-piratelabs --created-before={cb} --brief".format(
                                   cb="-1d")).strip().split("\n"), [self.project_ppb])
 
-            self.assertItemsEqual(run("dx find org_projects org-piratelabs --created-after={ca} --brief".format(
+            self.assertItemsEqual(run("dx find org projects org-piratelabs --created-after={ca} --brief".format(
                                   ca="-1d")).strip().split("\n"), [project_id])
 
             # Test date
-            self.assertItemsEqual(run("dx find org_projects org-piratelabs --created-before={cb} --brief".format(
+            self.assertItemsEqual(run("dx find org projects org-piratelabs --created-before={cb} --brief".format(
                                   cb="2015-10-28")).strip().split("\n"), [self.project_ppb])
 
-            self.assertItemsEqual(run("dx find org_projects org-piratelabs --created-after={ca} --brief".format(
+            self.assertItemsEqual(run("dx find org projects org-piratelabs --created-after={ca} --brief".format(
                                   ca="2015-10-28")).strip().split("\n"), [project_id])
 
     def test_dx_find_org_projects_format(self):
-        cmd = "dx find org_projects org-piratelabs {opts}"
+        cmd = "dx find org projects org-piratelabs {opts}"
 
         # Assert that only project ids are returned, line-separated
         output = run(cmd.format(opts="--brief")).strip().split("\n")
@@ -4550,7 +4550,7 @@ class TestDXClientNewUser(DXTestCase):
         self._assert_user_desc(user_id, {"last": last})
 
         # Basic with all options we can verify.
-        # TODO: Test --token-duration and --occupation.
+        # TODO: Test --occupation.
         username, email = generate_unique_username_email()
         user_id = run("{cmd} --username {u} --email {e} --first {f} --middle {m} --last {l} --brief".format(
                       cmd=cmd, u=username, e=email, f=first, m=middle,
@@ -4674,6 +4674,34 @@ class TestDXClientNewUser(DXTestCase):
         }
         res = dxpy.api.org_find_members(self.org_id, {"id": [user_id]})["results"][0]
         self.assertEqual(res, exp)
+
+    def test_create_user_account_and_set_token_duration_negative(self):
+        first = "Asset"
+        username, email = "token_duration_neg", "token_duration_neg@example.com"
+        cmd = "dx new user --username {u} --email {e} --first {f} --token-duration {td}"
+
+        invalid_token_durations = [
+            "8md",  # "md" is an invalid unit
+            "8.5",  # float is an invalid input
+            "8.5d",  # float with unit is an invalid input
+            "31d"  # longer than 30 days
+        ]
+
+        # test invalid inputs for token duration
+        for invalid_token_duration in invalid_token_durations:
+            with self.assertRaisesRegexp(subprocess.CalledProcessError, "ValueError"):
+                run(cmd.format(u=username.lower(), e=email, f=first, td=invalid_token_duration))
+
+    def test_create_user_account_and_set_token_duration(self):
+        first = "Asset"
+        cmd = "dx new user --username {u} --email {e} --first {f} --token-duration={td} --brief"
+
+        token_durations = ["10000", "10d", "-10000", "-10d"]
+
+        for token_duration in token_durations:
+            username, email = generate_unique_username_email()
+            user_id = run(cmd.format(u=username, e=email, f=first, td=token_duration)).strip()
+            self.assertEqual(user_id, "user-" + username.lower())
 
 
 @unittest.skipUnless(testutil.TEST_ISOLATED_ENV,
@@ -4934,6 +4962,45 @@ class TestDXClientMembership(DXTestCase):
         membership = self._org_find_members(self.user_id)
         self.assertEqual(membership, exp_membership)
 
+    def test_update_membership_to_member_without_membership_flags(self):
+        cmd = "dx update member {o} {u} --level MEMBER".format(o=self.org_id, u=self.username)
+
+        # ADMIN to MEMBER.
+        self._add_user(self.user_id)
+        exp = {"id": self.user_id,
+               "level": "ADMIN",
+               "allowBillableActivities": True,
+               "createProjectsAndApps": True,
+               "projectAccess": "ADMINISTER",
+               "appAccess": True}
+        membership_response = self._org_find_members(self.user_id)
+        self.assertEqual(membership_response, exp)
+
+        run(cmd)
+        exp = {"id": self.user_id,
+               "level": "MEMBER",
+               "allowBillableActivities": False,
+               "createProjectsAndApps": False,
+               "projectAccess": "CONTRIBUTE",
+               "appAccess": True}
+        membership_response = self._org_find_members(self.user_id)
+        self.assertEqual(membership_response, exp)
+
+        # MEMBER to MEMBER.
+        run(cmd + " --allow-billable-activities true")
+        exp = {"id": self.user_id,
+               "level": "MEMBER",
+               "allowBillableActivities": True,
+               "createProjectsAndApps": True,
+               "projectAccess": "CONTRIBUTE",
+               "appAccess": True}
+        membership_response = self._org_find_members(self.user_id)
+        self.assertEqual(membership_response, exp)
+
+        run(cmd)
+        membership_response = self._org_find_members(self.user_id)
+        self.assertEqual(membership_response, exp)
+
     def test_update_membership_negative(self):
         cmd = "dx update member"
 
@@ -4982,12 +5049,7 @@ class TestDXClientMembership(DXTestCase):
 
         cmd = "dx update member {o} {u} --level MEMBER --allow-billable-activities true"
         run(cmd.format(o=self.org_id, u=self.username))
-        exp_membership = {"id": self.user_id,
-                          "level": "MEMBER",
-                          "allowBillableActivities": True,
-                          "createProjectsAndApps": True,
-                          "appAccess": True,
-                          "projectAccess": "UPLOAD"}
+        exp_membership.update(allowBillableActivities=True, createProjectsAndApps=True)
         membership = self._org_find_members(self.user_id)
         self.assertEqual(membership, exp_membership)
 
@@ -5004,17 +5066,56 @@ class TestDXClientMembership(DXTestCase):
 
         cmd = "dx update member {o} {u} --level MEMBER --allow-billable-activities true --project-access CONTRIBUTE --app-access false"
         run(cmd.format(o=self.org_id, u=self.username))
-        exp_membership = {"id": self.user_id,
-                          "level": "MEMBER",
-                          "allowBillableActivities": True,
-                          "createProjectsAndApps": True,
-                          "appAccess": False,
-                          "projectAccess": "CONTRIBUTE"}
+        exp_membership.update(level="MEMBER", projectAccess="CONTRIBUTE", appAccess=False)
         membership = self._org_find_members(self.user_id)
         self.assertEqual(membership, exp_membership)
 
         cmd = "dx remove member {o} {u} -y"
         run(cmd.format(o=self.org_id, u=self.username))
+
+        with self.assertRaises(IndexError):
+            self._org_find_members(self.user_id)
+
+    def test_add_update_remove_membership_with_user_id(self):
+        # This is similar to `test_add_update_remove_membership()` above, but
+        # it specifies user id instead of username as arg to `dx` command.
+
+        cmd = "dx add member {o} {u} --level {l} --project-access UPLOAD"
+        run(cmd.format(o=self.org_id, u=self.user_id, l="MEMBER"))
+        exp_membership = {"id": self.user_id,
+                          "level": "MEMBER",
+                          "allowBillableActivities": False,
+                          "createProjectsAndApps": False,
+                          "appAccess": True,
+                          "projectAccess": "UPLOAD"}
+        membership = self._org_find_members(self.user_id)
+        self.assertEqual(membership, exp_membership)
+
+        cmd = "dx update member {o} {u} --level MEMBER --allow-billable-activities true"
+        run(cmd.format(o=self.org_id, u=self.user_id))
+        exp_membership.update(allowBillableActivities=True, createProjectsAndApps=True)
+        membership = self._org_find_members(self.user_id)
+        self.assertEqual(membership, exp_membership)
+
+        cmd = "dx update member {o} {u} --level ADMIN"
+        run(cmd.format(o=self.org_id, u=self.user_id))
+        exp_membership = {"id": self.user_id,
+                          "level": "ADMIN",
+                          "allowBillableActivities": True,
+                          "createProjectsAndApps": True,
+                          "appAccess": True,
+                          "projectAccess": "ADMINISTER"}
+        membership = self._org_find_members(self.user_id)
+        self.assertEqual(membership, exp_membership)
+
+        cmd = "dx update member {o} {u} --level MEMBER --allow-billable-activities true --project-access CONTRIBUTE --app-access false"
+        run(cmd.format(o=self.org_id, u=self.user_id))
+        exp_membership.update(level="MEMBER", projectAccess="CONTRIBUTE", appAccess=False)
+        membership = self._org_find_members(self.user_id)
+        self.assertEqual(membership, exp_membership)
+
+        cmd = "dx remove member {o} {u} -y"
+        run(cmd.format(o=self.org_id, u=self.user_id))
 
         with self.assertRaises(IndexError):
             self._org_find_members(self.user_id)

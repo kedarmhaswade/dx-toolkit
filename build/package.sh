@@ -32,7 +32,7 @@ cd "${DNANEXUS_HOME}"
 make clean
 make
 rm Makefile
-rm -rf debian src/{java,javascript,perl,R,ruby,ua,python/build,{dx-verify-file,dx-contigset-to-fasta,dx-wig-to-wiggle}/build} build/py27_env share/dnanexus/lib/javascript
+rm -rf debian src/{java,javascript,perl,R,ruby,ua,python/build,{dx-verify-file,dx-contigset-to-fasta,dx-wig-to-wiggle}/build} build/py_env share/dnanexus/lib/javascript
 mv build/Prebuilt-Readme.md Readme.md
 
 "$(dirname $0)/fix_shebang_lines.sh" bin "/usr/bin/env python2.7"
@@ -81,7 +81,7 @@ elif [[ "$ostype" == 'Darwin' ]]; then # Mac OS
   for readline_egg in readline-*; do
     mv $readline_egg ${readline_egg/-macosx-10.*-intel/} || true
   done
-  sed -i -e 's/-py2.7-macosx-10\.[0-9]+-intel.egg/-py2.7.egg/' easy-install.pth
+  sed -i -e 's/-py2.7-macosx-10\.[0-9]+-intel.egg/-py2.7.egg/' easy-install.pth || true
 
   cd $tempdir
   rm -rf dx-toolkit/.git
