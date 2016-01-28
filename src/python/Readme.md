@@ -1,9 +1,7 @@
-DNAnexus Python API
-===================
+dxpy: DNAnexus Python API
+=========================
 
-The Python library is called ```dxpy```.
-
-Documentation is available at http://autodoc.dnanexus.com/bindings/python/current/.
+[API Documentation](http://autodoc.dnanexus.com/bindings/python/current/)
 
 ## Debugging
 
