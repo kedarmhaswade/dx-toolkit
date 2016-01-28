@@ -245,6 +245,8 @@ def _download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, appen
         if hasher is not None and "md5" not in parts[_part_id]:
             warnings.warn("Download of file {} is not being checked for integrity".format(dxfile.get_id()))
         elif hasher is not None and hasher.hexdigest() != parts[_part_id]["md5"]:
+            print("MD5 mismatch error, printing file description:")
+            print(dxfile_desc)
             src_part = dbg_find_part_id_from_md5(hasher.hexdigest())
             msg = "Checksum mismatch in {} part {} (expected {}, got {} matching part {})"
             msg = msg.format(dxfile.get_id(), _part_id, parts[_part_id]["md5"], hasher.hexdigest(), src_part)
@@ -276,6 +278,7 @@ def _download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, appen
             fh.close()
             print("Retrying {} ({} tries remain)".format(dxfile.get_id(), _download_retry_counter[part_gid]),
                   file=sys.stderr)
+            print(dxfile_desc)
             return False
 #            return download_dxfile(dxfile, filename, chunksize=chunksize, append=append,
 #                                   show_progress=show_progress, project=project, **kwargs)
