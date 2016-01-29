@@ -251,7 +251,7 @@ def _download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, appen
             msg = msg.format(dxfile.get_id(), _part_id, parts[_part_id]["md5"], hasher.hexdigest(), src_part)
             raise DXChecksumMismatchError(msg)
         # random error injection, to check retries
-        if random.range(1,100) == 3:
+        if random.randrange(1,100) == 3:
             raise DXPartLengthMismatchError("Random error injection")
 
     try:
