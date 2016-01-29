@@ -49,105 +49,100 @@ import com.google.common.io.ByteStreams;
  */
 public class DXFile extends DXDataObject {
 
-	/**
-	 * Builder class for creating a new {@code DXFile} object. To obtain an
-	 * instance, call {@link DXFile#newFile()}.
-	 */
-	public static class Builder extends DXDataObject.Builder<Builder, DXFile> {
-		private String media;
-		private InputStream uploadData;
+    /**
+     * Builder class for creating a new {@code DXFile} object. To obtain an instance, call
+     * {@link DXFile#newFile()}.
+     */
+    public static class Builder extends DXDataObject.Builder<Builder, DXFile> {
+        private String media;
+        private InputStream uploadData;
 
-		private Builder() {
-			super();
-		}
+        private Builder() {
+            super();
+        }
 
-		private Builder(DXEnvironment env) {
-			super(env);
-		}
+        private Builder(DXEnvironment env) {
+            super(env);
+        }
 
-		/**
-		 * Creates the file.
-		 *
-		 * @return a {@code DXFile} object corresponding to the newly created
-		 *         object
-		 */
-		@Override
-		public DXFile build() {
-			DXFile file = new DXFile(DXAPI.fileNew(this.buildRequestHash(), ObjectNewResponse.class, this.env).getId(),
-					this.project, this.env, null);
+        /**
+         * Creates the file.
+         *
+         * @return a {@code DXFile} object corresponding to the newly created object
+         */
+        @Override
+        public DXFile build() {
+            DXFile file = new DXFile(DXAPI.fileNew(this.buildRequestHash(), ObjectNewResponse.class, this.env).getId(),
+                    this.project, this.env, null);
 
-			if (uploadData != null) {
-				file.upload(uploadData);
-			}
+            if (uploadData != null) {
+                file.upload(uploadData);
+            }
 
-			return file;
-		}
+            return file;
+        }
 
-		/**
-		 * Use this method to test the JSON hash created by a particular builder
-		 * call without actually executing the request.
-		 *
-		 * @return a JsonNode
-		 */
-		@VisibleForTesting
-		JsonNode buildRequestHash() {
-			checkAndFixParameters();
-			return MAPPER.valueToTree(new FileNewRequest(this));
-		}
+        /**
+         * Use this method to test the JSON hash created by a particular builder call without
+         * actually executing the request.
+         *
+         * @return a JsonNode
+         */
+        @VisibleForTesting
+        JsonNode buildRequestHash() {
+            checkAndFixParameters();
+            return MAPPER.valueToTree(new FileNewRequest(this));
+        }
 
-		/*
-		 * (non-Javadoc)
-		 *
-		 * @see com.dnanexus.DXDataObject.Builder#getThisInstance()
-		 */
-		@Override
-		protected Builder getThisInstance() {
-			return this;
-		}
+        /*
+         * (non-Javadoc)
+         *
+         * @see com.dnanexus.DXDataObject.Builder#getThisInstance()
+         */
+        @Override
+        protected Builder getThisInstance() {
+            return this;
+        }
 
-		/**
-		 * Sets the Internet Media Type of the file to be created.
-		 *
-		 * @param mediaType
-		 *            Internet Media Type
-		 *
-		 * @return the same {@code Builder} object
-		 */
-		public Builder setMediaType(String mediaType) {
-			Preconditions.checkState(this.media == null, "Cannot call setMediaType more than once");
-			this.media = Preconditions.checkNotNull(mediaType, "mediaType may not be null");
-			return getThisInstance();
-		}
+        /**
+         * Sets the Internet Media Type of the file to be created.
+         *
+         * @param mediaType Internet Media Type
+         *
+         * @return the same {@code Builder} object
+         */
+        public Builder setMediaType(String mediaType) {
+            Preconditions.checkState(this.media == null, "Cannot call setMediaType more than once");
+            this.media = Preconditions.checkNotNull(mediaType, "mediaType may not be null");
+            return getThisInstance();
+        }
 
-		/**
-		 * Uploads the data in the specified byte array to the file to be
-		 * created.
-		 *
-		 * @param data
-		 *            Data to be uploaded
-		 *
-		 * @return the same {@code Builder} object
-		 */
-		public Builder upload(byte[] data) {
-			Preconditions.checkNotNull(data, "data may not be null");
-			InputStream dataStream = new ByteArrayInputStream(data);
-			return this.upload(dataStream);
-		}
+        /**
+         * Uploads the data in the specified byte array to the file to be created.
+         *
+         * @param data Data to be uploaded
+         *
+         * @return the same {@code Builder} object
+         */
+        public Builder upload(byte[] data) {
+            Preconditions.checkNotNull(data, "data may not be null");
+            InputStream dataStream = new ByteArrayInputStream(data);
+            return this.upload(dataStream);
+        }
 
-		/**
-		 * Uploads the data in the specified stream to the file to be created.
-		 *
-		 * @param data
-		 *            Stream containing data to be uploaded
-		 *
-		 * @return the same {@code Builder} object
-		 */
-		public Builder upload(InputStream data) {
-			Preconditions.checkNotNull(this.uploadData == null, "Cannot call upload more than once");
-			this.uploadData = Preconditions.checkNotNull(data, "data may not be null");
-			return getThisInstance();
-		}
-	}
+        /**
+         * Uploads the data in the specified stream to the file to be created.
+         *
+         * @param data Stream containing data to be uploaded
+         *
+         * @return the same {@code Builder} object
+         */
+        public Builder upload(InputStream data) {
+            Preconditions.checkNotNull(this.uploadData == null, "Cannot call upload more than once");
+            this.uploadData = Preconditions.checkNotNull(data, "data may not be null");
+            return getThisInstance();
+        }
+    }
 
 	/**
 	 * Contains metadata for a file.
@@ -172,67 +167,67 @@ public class DXFile extends DXDataObject {
 		}
 	}
 
-	/**
-	 * Request to /file-xxxx/download.
-	 */
-	@JsonInclude(Include.NON_NULL)
-	private static class FileDownloadRequest {
-		@JsonProperty("preauthenticated")
-		private boolean preauth;
+    /**
+     * Request to /file-xxxx/download.
+     */
+    @JsonInclude(Include.NON_NULL)
+    private static class FileDownloadRequest {
+        @JsonProperty("preauthenticated")
+        private boolean preauth;
 
-		private FileDownloadRequest(boolean preauth) {
-			this.preauth = preauth;
-		}
-	}
+        private FileDownloadRequest(boolean preauth) {
+            this.preauth = preauth;
+        }
+    }
 
-	/**
-	 * Deserialized output from the /file-xxxx/download route.
-	 */
-	@JsonIgnoreProperties(ignoreUnknown = true)
-	private static class FileDownloadResponse {
-		@JsonProperty
-		private String url;
-	}
+    /**
+     * Deserialized output from the /file-xxxx/download route.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private static class FileDownloadResponse {
+        @JsonProperty
+        private String url;
+    }
 
-	@JsonInclude(Include.NON_NULL)
-	private static class FileNewRequest extends DataObjectNewRequest {
-		@JsonProperty
-		private final String media;
+    @JsonInclude(Include.NON_NULL)
+    private static class FileNewRequest extends DataObjectNewRequest {
+        @JsonProperty
+        private final String media;
 
-		public FileNewRequest(Builder builder) {
-			super(builder);
-			this.media = builder.media;
-		}
-	}
+        public FileNewRequest(Builder builder) {
+            super(builder);
+            this.media = builder.media;
+        }
+    }
 
-	/**
-	 * Request to /file-xxxx/upload.
-	 */
-	@JsonInclude(Include.NON_NULL)
-	private static class FileUploadRequest {
-		@JsonProperty
-		private String md5;
-		@JsonProperty
-		private int size;
-		
-		private FileUploadRequest(int size, String md5) {
-			this.size = size;
-			this.md5 = md5;
-		}
-	}
+    /**
+     * Request to /file-xxxx/upload.
+     */
+    @JsonInclude(Include.NON_NULL)
+    private static class FileUploadRequest {
+        @JsonProperty
+        private String md5;
+        @JsonProperty
+        private int size;
 
-	/**
-	 * Response from /file-xxxx/upload
-	 */
-	@JsonIgnoreProperties(ignoreUnknown = true)
-	private static class FileUploadResponse {
-		@JsonProperty
-		private Map<String, String> headers;
-		@JsonProperty
-		private String url;
-	}
+        private FileUploadRequest(int size, String md5) {
+            this.size = size;
+            this.md5 = md5;
+        }
+    }
 
-	private static final String USER_AGENT = DXUserAgent.getUserAgent();
+    /**
+     * Response from /file-xxxx/upload
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private static class FileUploadResponse {
+        @JsonProperty
+        private Map<String, String> headers;
+        @JsonProperty
+        private String url;
+    }
+
+    private static final String USER_AGENT = DXUserAgent.getUserAgent();
 
 	/**
 	 * Deserializes a DXFile from JSON containing a DNAnexus link.
@@ -364,55 +359,55 @@ public class DXFile extends DXDataObject {
 				apiCallOnObject("describe", MAPPER.valueToTree(options), RetryStrategy.SAFE_TO_RETRY), Describe.class);
 	}
 
-	/**
-	 * Downloads the file and returns a byte array of its contents.
-	 *
-	 * @return byte array containing file contents
-	 */
-	// TODO: set project ID containing the file to be downloaded
-	public byte[] downloadBytes() {
-		// API call returns URL for HTTP GET requests
-		JsonNode output = apiCallOnObject("download", MAPPER.valueToTree(new FileDownloadRequest(true)),
-				RetryStrategy.SAFE_TO_RETRY);
+    /**
+     * Downloads the file and returns a byte array of its contents.
+     *
+     * @return byte array containing file contents
+     */
+    // TODO: set project ID containing the file to be downloaded
+    public byte[] downloadBytes() {
+        // API call returns URL for HTTP GET requests
+        JsonNode output = apiCallOnObject("download", MAPPER.valueToTree(new FileDownloadRequest(true)),
+                RetryStrategy.SAFE_TO_RETRY);
 
-		FileDownloadResponse apiResponse;
-		HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
-		InputStream content = null;
-		byte[] data;
+        FileDownloadResponse apiResponse;
+        HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
+        InputStream content = null;
+        byte[] data;
 
-		try {
-			apiResponse = MAPPER.treeToValue(output, FileDownloadResponse.class);
+        try {
+            apiResponse = MAPPER.treeToValue(output, FileDownloadResponse.class);
 
-			// HTTP GET request to download URL
-			HttpGet request = new HttpGet(apiResponse.url);
-			HttpResponse response = httpclient.execute(request);
-			content = response.getEntity().getContent();
+            // HTTP GET request to download URL
+            HttpGet request = new HttpGet(apiResponse.url);
+            HttpResponse response = httpclient.execute(request);
+            content = response.getEntity().getContent();
 
-			data = IOUtils.toByteArray(content);
-			content.close();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+            data = IOUtils.toByteArray(content);
+            content.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
-		return data;
-	}
+        return data;
+    }
 
-	/**
-	 * Downloads the file and returns a stream of its contents
-	 *
-	 * @return stream containing file contents
-	 */
-	public OutputStream downloadStream() {
-		byte[] dataBytes = this.downloadBytes();
-		OutputStream data = new ByteArrayOutputStream(dataBytes.length);
-		try {
-			data.write(dataBytes, 0, dataBytes.length);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+    /**
+     * Downloads the file and returns a stream of its contents
+     *
+     * @return stream containing file contents
+     */
+    public OutputStream downloadStream() {
+        byte[] dataBytes = this.downloadBytes();
+        OutputStream data = new ByteArrayOutputStream(dataBytes.length);
+        try {
+            data.write(dataBytes, 0, dataBytes.length);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
-		return data;
-	}
+        return data;
+    }
 
 	@Override
 	public Describe getCachedDescribe() {
@@ -420,82 +415,79 @@ public class DXFile extends DXDataObject {
 		return DXJSON.safeTreeToValue(this.cachedDescribe, Describe.class);
 	}
 
-	/**
-	 * Uploads data from the specified byte array to the file.
-	 *
-	 * <p>
-	 * The file must be in the "open" state. This method assumes exclusive
-	 * access to the file: the file must have no parts uploaded before this call
-	 * is made, and no other clients may upload data to the same file
-	 * concurrently.
-	 * </p>
-	 *
-	 * @param data
-	 *            data in bytes to be uploaded
-	 */
-	public void upload(byte[] data) {
-		Preconditions.checkNotNull(data, "data may not be null");
-		
-		// MD5 digest as 32 character hex string
-		String dataMD5 = DigestUtils.md5Hex(data);
+    /**
+     * Uploads data from the specified byte array to the file.
+     *
+     * <p>
+     * The file must be in the "open" state. This method assumes exclusive access to the file: the
+     * file must have no parts uploaded before this call is made, and no other clients may upload
+     * data to the same file concurrently.
+     * </p>
+     *
+     * @param data data in bytes to be uploaded
+     */
+    public void upload(byte[] data) {
+        Preconditions.checkNotNull(data, "data may not be null");
 
-		// API call returns URL and headers
-		JsonNode output = apiCallOnObject("upload", MAPPER.valueToTree(new FileUploadRequest(data.length, dataMD5)),
-				RetryStrategy.SAFE_TO_RETRY);
+        // MD5 digest as 32 character hex string
+        String dataMD5 = DigestUtils.md5Hex(data);
 
-		FileUploadResponse apiResponse;
-		try {
-			apiResponse = MAPPER.treeToValue(output, FileUploadResponse.class);
-		} catch (JsonProcessingException e) {
-			throw new RuntimeException(e);
-		}
+        // API call returns URL and headers
+        JsonNode output = apiCallOnObject("upload", MAPPER.valueToTree(new FileUploadRequest(data.length, dataMD5)),
+                RetryStrategy.SAFE_TO_RETRY);
 
-		// Check that the content-length received by the apiserver is the same
-		// as the length of the data
-		if (apiResponse.headers.containsKey("content-length")) {
-			int apiserverContentLength = Integer.parseInt(apiResponse.headers.get("content-length"));
-			if (apiserverContentLength != data.length) {
-				throw new AssertionError(
-						"Content-length received by the apiserver did not match that of the input data");
-			}
-		}
+        FileUploadResponse apiResponse;
+        try {
+            apiResponse = MAPPER.treeToValue(output, FileUploadResponse.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
 
-		// HTTP PUT request to upload URL and headers
-		HttpPut request = new HttpPut(apiResponse.url);
-		request.setEntity(new ByteArrayEntity(data));
+        // Check that the content-length received by the apiserver is the same
+        // as the length of the data
+        if (apiResponse.headers.containsKey("content-length")) {
+            int apiserverContentLength = Integer.parseInt(apiResponse.headers.get("content-length"));
+            if (apiserverContentLength != data.length) {
+                throw new AssertionError(
+                        "Content-length received by the apiserver did not match that of the input data");
+            }
+        }
 
-		for (Map.Entry<String, String> header : apiResponse.headers.entrySet()) {
-			String key = header.getKey();
+        // HTTP PUT request to upload URL and headers
+        HttpPut request = new HttpPut(apiResponse.url);
+        request.setEntity(new ByteArrayEntity(data));
 
-			// The request implicitly supplies the content length in the headers
-			// when executed
-			if (key.equals("content-length")) {
-				continue;
-			}
+        for (Map.Entry<String, String> header : apiResponse.headers.entrySet()) {
+            String key = header.getKey();
 
-			request.setHeader(key, header.getValue());
-		}
+            // The request implicitly supplies the content length in the headers
+            // when executed
+            if (key.equals("content-length")) {
+                continue;
+            }
 
-		HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
-		try {
-			httpclient.execute(request);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+            request.setHeader(key, header.getValue());
+        }
 
-	/**
-	 * Uploads data from the specified stream to the file.
-	 *
-	 * @param data
-	 *            stream containing data to be uploaded
-	 */
-	public void upload(InputStream data) {
-		Preconditions.checkNotNull(data, "data may not be null");
-		try {
-			this.upload(ByteStreams.toByteArray(data));
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+        HttpClient httpclient = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
+        try {
+            httpclient.execute(request);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Uploads data from the specified stream to the file.
+     *
+     * @param data stream containing data to be uploaded
+     */
+    public void upload(InputStream data) {
+        Preconditions.checkNotNull(data, "data may not be null");
+        try {
+            this.upload(ByteStreams.toByteArray(data));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
