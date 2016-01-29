@@ -401,8 +401,8 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
             # throws BadStatusLine if the server returns nothing
             response = _get_pool_manager(**pool_args).request(_method, _url, headers=_headers, body=data,
                                                               timeout=timeout, retries=False, **kwargs)
-            sleep_ms = random.randrange(1,10) * 10
-            time.sleep(sleep_ms / 1000.0)
+#            sleep_ms = random.randrange(1,10) * 10
+#            time.sleep(sleep_ms / 1000.0)
 
             if _UPGRADE_NOTIFY and response.headers.get('x-upgrade-info', '').startswith('A recommended update is available') and '_ARGCOMPLETE' not in os.environ:
                 logger.info(response.headers['x-upgrade-info'])
