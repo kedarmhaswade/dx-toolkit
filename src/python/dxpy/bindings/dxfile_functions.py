@@ -28,7 +28,6 @@ import os, sys, math, mmap, stat
 import hashlib
 import traceback
 import warnings
-import random
 from collections import defaultdict
 
 import dxpy
@@ -119,9 +118,10 @@ def download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append
                                   chunksize=chunksize, append=append,
                                   show_progress=show_progress, project=project, **kwargs)
 
+
 def _download_dxfile(dxid, filename, part_retry_counter,
                      chunksize=dxfile.DEFAULT_BUFFER_SIZE, append=False, show_progress=False,
-                    project=None, **kwargs):
+                     project=None, **kwargs):
     def print_progress(bytes_downloaded, file_size, action="Downloaded"):
         num_ticks = 60
 
