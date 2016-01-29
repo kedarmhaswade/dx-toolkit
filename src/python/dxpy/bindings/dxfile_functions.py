@@ -89,8 +89,6 @@ def new_dxfile(mode=None, write_buffer_size=dxfile.DEFAULT_BUFFER_SIZE, **kwargs
     dx_file.new(**kwargs)
     return dx_file
 
-_download_retry_counter = defaultdict(lambda: 3)
-
 def download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append=False, show_progress=False,
                     project=None, **kwargs):
     '''
@@ -114,12 +112,15 @@ def download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append
 
     '''
     # retry the inner loop while there are retriable errors
+    part_retry_counter = defaultdict(lambda: 3)
     retval = False
     while not retval:
-        retval = _download_dxfile(dxid, filename, chunksize=chunksize, append=append,
+        retval = _download_dxfile(dxid, filename, part_retry_counter,
+                                  chunksize=chunksize, append=append,
                                   show_progress=show_progress, project=project, **kwargs)
 
-def _download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append=False, show_progress=False,
+def _download_dxfile(dxid, filename, part_retry_counter,
+                     chunksize=dxfile.DEFAULT_BUFFER_SIZE, append=False, show_progress=False,
                     project=None, **kwargs):
     def print_progress(bytes_downloaded, file_size, action="Downloaded"):
         num_ticks = 60
@@ -250,9 +251,6 @@ def _download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, appen
             msg = "Checksum mismatch in {} part {} (expected {}, got {} matching part {})"
             msg = msg.format(dxfile.get_id(), _part_id, parts[_part_id]["md5"], hasher.hexdigest(), src_part)
             raise DXChecksumMismatchError(msg)
-        # random error injection, to check retries
-        if random.randrange(1,500) == 3:
-            raise DXPartLengthMismatchError("Random error injection")
 
     try:
         cur_part, got_bytes, hasher = None, None, None
@@ -275,14 +273,12 @@ def _download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, appen
     except DXFileError:
         part_gid = dxfile.get_id() + str(cur_part)
         print(traceback.format_exc(), file=sys.stderr)
-        _download_retry_counter[part_gid] -= 1
-        if _download_retry_counter[part_gid] > 0:
+        part_retry_counter[part_gid] -= 1
+        if part_retry_counter[part_gid] > 0:
             fh.close()
-            print("Retrying {} ({} tries remain)".format(dxfile.get_id(), _download_retry_counter[part_gid]),
+            print("Retrying {} ({} tries remain)".format(dxfile.get_id(), part_retry_counter[part_gid]),
                   file=sys.stderr)
             return False
-#            return download_dxfile(dxfile, filename, chunksize=chunksize, append=append,
-#                                   show_progress=show_progress, project=project, **kwargs)
         raise
 
     if show_progress:
