@@ -223,6 +223,7 @@ def _download_dxfile(dxid, filename, part_retry_counter,
 
     def get_chunk(part_id_to_get, start, end):
         url, headers = dxfile.get_download_url(project=project, **kwargs)
+        headers = dict(headers)
         # If we're fetching the whole object in one shot, avoid setting the Range header to take advantage of gzip
         # transfer compression
         if len(parts) > 1 or end - start + 1 < parts[part_id_to_get]["size"]:
