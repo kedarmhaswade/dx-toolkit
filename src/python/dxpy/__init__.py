@@ -129,7 +129,6 @@ import os, sys, json, time, logging, platform, ssl, traceback
 import errno
 import requests
 import socket
-import random
 from collections import namedtuple
 from . import exceptions
 from requests.auth import AuthBase
@@ -401,8 +400,6 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
             # throws BadStatusLine if the server returns nothing
             response = _get_pool_manager(**pool_args).request(_method, _url, headers=_headers, body=data,
                                                               timeout=timeout, retries=False, **kwargs)
-#            sleep_ms = random.randrange(1,10) * 10
-#            time.sleep(sleep_ms / 1000.0)
 
             if _UPGRADE_NOTIFY and response.headers.get('x-upgrade-info', '').startswith('A recommended update is available') and '_ARGCOMPLETE' not in os.environ:
                 logger.info(response.headers['x-upgrade-info'])
@@ -472,7 +469,6 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
             _get_pool_manager(**pool_args).clear()
             success = False
             exception_msg = _extract_msg_from_last_exception()
-            logger.info("Clearing request pool, caught exception {}".format(exception_msg))
             if isinstance(e, _expected_exceptions):
                 if response is not None and response.status == 503:
                     seconds_to_wait = _extract_retry_after_timeout(response)
