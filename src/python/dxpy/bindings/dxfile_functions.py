@@ -28,6 +28,7 @@ import os, sys, math, mmap, stat
 import hashlib
 import traceback
 import warnings
+import random
 from collections import defaultdict
 
 import dxpy
