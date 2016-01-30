@@ -144,28 +144,28 @@ public class DXFile extends DXDataObject {
         }
     }
 
-	/**
-	 * Contains metadata for a file.
-	 */
-	public static class Describe extends DXDataObject.Describe {
-		@JsonProperty
-		private String media;
+    /**
+     * Contains metadata for a file.
+     */
+    public static class Describe extends DXDataObject.Describe {
+        @JsonProperty
+        private String media;
 
-		private Describe() {
-			super();
-		}
+        private Describe() {
+            super();
+        }
 
-		/**
-		 * Returns the Internet Media Type of the file.
-		 *
-		 * @return Internet Media Type
-		 */
-		public String getMediaType() {
-			Preconditions.checkState(this.media != null,
-					"media type is not accessible because it was not retrieved with the describe call");
-			return media;
-		}
-	}
+        /**
+         * Returns the Internet Media Type of the file.
+         *
+         * @return Internet Media Type
+         */
+        public String getMediaType() {
+            Preconditions.checkState(this.media != null,
+                    "media type is not accessible because it was not retrieved with the describe call");
+            return media;
+        }
+    }
 
     /**
      * Request to /file-xxxx/download.
@@ -229,135 +229,135 @@ public class DXFile extends DXDataObject {
 
     private static final String USER_AGENT = DXUserAgent.getUserAgent();
 
-	/**
-	 * Deserializes a DXFile from JSON containing a DNAnexus link.
-	 *
-	 * @param value
-	 *            JSON object map
-	 *
-	 * @return data object
-	 */
-	@JsonCreator
-	private static DXFile create(Map<String, Object> value) {
-		checkDXLinkFormat(value);
-		// TODO: how to set the environment?
-		return DXFile.getInstance((String) value.get("$dnanexus_link"));
-	}
+    /**
+     * Deserializes a DXFile from JSON containing a DNAnexus link.
+     *
+     * @param value
+     *            JSON object map
+     *
+     * @return data object
+     */
+    @JsonCreator
+    private static DXFile create(Map<String, Object> value) {
+        checkDXLinkFormat(value);
+        // TODO: how to set the environment?
+        return DXFile.getInstance((String) value.get("$dnanexus_link"));
+    }
 
-	/**
-	 * Returns a {@code DXFile} associated with an existing file.
-	 *
-	 * @throws NullPointerException
-	 *             If {@code fileId} is null
-	 */
-	public static DXFile getInstance(String fileId) {
-		return new DXFile(fileId, null);
-	}
+    /**
+     * Returns a {@code DXFile} associated with an existing file.
+     *
+     * @throws NullPointerException
+     *             If {@code fileId} is null
+     */
+    public static DXFile getInstance(String fileId) {
+        return new DXFile(fileId, null);
+    }
 
-	/**
-	 * Returns a {@code DXFile} associated with an existing file in a particular
-	 * project or container.
-	 *
-	 * @throws NullPointerException
-	 *             If {@code fileId} or {@code container} is null
-	 */
-	public static DXFile getInstance(String fileId, DXContainer project) {
-		return new DXFile(fileId, project, null, null);
-	}
+    /**
+     * Returns a {@code DXFile} associated with an existing file in a particular
+     * project or container.
+     *
+     * @throws NullPointerException
+     *             If {@code fileId} or {@code container} is null
+     */
+    public static DXFile getInstance(String fileId, DXContainer project) {
+        return new DXFile(fileId, project, null, null);
+    }
 
-	/**
-	 * Returns a {@code DXFile} associated with an existing file in a particular
-	 * project using the specified environment, with the specified cached
-	 * describe output.
-	 *
-	 * <p>
-	 * This method is for use exclusively by bindings to the "find" routes when
-	 * describe hashes are returned with the find output.
-	 * </p>
-	 *
-	 * @throws NullPointerException
-	 *             If any argument is null
-	 */
-	static DXFile getInstanceWithCachedDescribe(String fileId, DXContainer project, DXEnvironment env,
-			JsonNode describe) {
-		return new DXFile(fileId, project, Preconditions.checkNotNull(env, "env may not be null"),
-				Preconditions.checkNotNull(describe, "describe may not be null"));
-	}
+    /**
+     * Returns a {@code DXFile} associated with an existing file in a particular
+     * project using the specified environment, with the specified cached
+     * describe output.
+     *
+     * <p>
+     * This method is for use exclusively by bindings to the "find" routes when
+     * describe hashes are returned with the find output.
+     * </p>
+     *
+     * @throws NullPointerException
+     *             If any argument is null
+     */
+    static DXFile getInstanceWithCachedDescribe(String fileId, DXContainer project, DXEnvironment env,
+            JsonNode describe) {
+        return new DXFile(fileId, project, Preconditions.checkNotNull(env, "env may not be null"),
+                Preconditions.checkNotNull(describe, "describe may not be null"));
+    }
 
-	/**
-	 * Returns a {@code DXFile} associated with an existing file in a particular
-	 * project using the specified environment.
-	 *
-	 * @throws NullPointerException
-	 *             If {@code fileId} or {@code container} is null
-	 */
-	public static DXFile getInstanceWithEnvironment(String fileId, DXContainer project, DXEnvironment env) {
-		return new DXFile(fileId, project, Preconditions.checkNotNull(env, "env may not be null"), null);
-	}
+    /**
+     * Returns a {@code DXFile} associated with an existing file in a particular
+     * project using the specified environment.
+     *
+     * @throws NullPointerException
+     *             If {@code fileId} or {@code container} is null
+     */
+    public static DXFile getInstanceWithEnvironment(String fileId, DXContainer project, DXEnvironment env) {
+        return new DXFile(fileId, project, Preconditions.checkNotNull(env, "env may not be null"), null);
+    }
 
-	/**
-	 * Returns a {@code DXFile} associated with an existing file using the
-	 * specified environment.
-	 *
-	 * @throws NullPointerException
-	 *             If {@code fileId} is null
-	 */
-	public static DXFile getInstanceWithEnvironment(String fileId, DXEnvironment env) {
-		return new DXFile(fileId, Preconditions.checkNotNull(env, "env may not be null"));
-	}
+    /**
+     * Returns a {@code DXFile} associated with an existing file using the
+     * specified environment.
+     *
+     * @throws NullPointerException
+     *             If {@code fileId} is null
+     */
+    public static DXFile getInstanceWithEnvironment(String fileId, DXEnvironment env) {
+        return new DXFile(fileId, Preconditions.checkNotNull(env, "env may not be null"));
+    }
 
-	/**
-	 * Returns a Builder object for creating a new {@code DXFile}.
-	 *
-	 * @return a newly initialized builder object
-	 */
-	public static Builder newFile() {
-		return new Builder();
-	}
+    /**
+     * Returns a Builder object for creating a new {@code DXFile}.
+     *
+     * @return a newly initialized builder object
+     */
+    public static Builder newFile() {
+        return new Builder();
+    }
 
-	/**
-	 * Returns a Builder object for creating a new {@code DXFile} using the
-	 * specified environment.
-	 *
-	 * @param env
-	 *            environment to use to make API calls
-	 *
-	 * @return a newly initialized builder object
-	 */
-	public static Builder newFileWithEnvironment(DXEnvironment env) {
-		return new Builder(env);
-	}
+    /**
+     * Returns a Builder object for creating a new {@code DXFile} using the
+     * specified environment.
+     *
+     * @param env
+     *            environment to use to make API calls
+     *
+     * @return a newly initialized builder object
+     */
+    public static Builder newFileWithEnvironment(DXEnvironment env) {
+        return new Builder(env);
+    }
 
-	private DXFile(String fileId, DXContainer project, DXEnvironment env, JsonNode describe) {
-		super(fileId, "file", project, env, describe);
-	}
+    private DXFile(String fileId, DXContainer project, DXEnvironment env, JsonNode describe) {
+        super(fileId, "file", project, env, describe);
+    }
 
-	private DXFile(String fileId, DXEnvironment env) {
-		super(fileId, "file", env, null);
-	}
+    private DXFile(String fileId, DXEnvironment env) {
+        super(fileId, "file", env, null);
+    }
 
-	@Override
-	public DXFile close() {
-		super.close();
-		return this;
-	}
+    @Override
+    public DXFile close() {
+        super.close();
+        return this;
+    }
 
-	@Override
-	public DXFile closeAndWait() {
-		super.closeAndWait();
-		return this;
-	}
+    @Override
+    public DXFile closeAndWait() {
+        super.closeAndWait();
+        return this;
+    }
 
-	@Override
-	public Describe describe() {
-		return DXJSON.safeTreeToValue(apiCallOnObject("describe", RetryStrategy.SAFE_TO_RETRY), Describe.class);
-	}
+    @Override
+    public Describe describe() {
+        return DXJSON.safeTreeToValue(apiCallOnObject("describe", RetryStrategy.SAFE_TO_RETRY), Describe.class);
+    }
 
-	@Override
-	public Describe describe(DescribeOptions options) {
-		return DXJSON.safeTreeToValue(
-				apiCallOnObject("describe", MAPPER.valueToTree(options), RetryStrategy.SAFE_TO_RETRY), Describe.class);
-	}
+    @Override
+    public Describe describe(DescribeOptions options) {
+        return DXJSON.safeTreeToValue(
+                apiCallOnObject("describe", MAPPER.valueToTree(options), RetryStrategy.SAFE_TO_RETRY), Describe.class);
+    }
 
     /**
      * Downloads the file and returns a byte array of its contents.
@@ -409,11 +409,11 @@ public class DXFile extends DXDataObject {
         return data;
     }
 
-	@Override
-	public Describe getCachedDescribe() {
-		this.checkCachedDescribeAvailable();
-		return DXJSON.safeTreeToValue(this.cachedDescribe, Describe.class);
-	}
+    @Override
+    public Describe getCachedDescribe() {
+        this.checkCachedDescribeAvailable();
+        return DXJSON.safeTreeToValue(this.cachedDescribe, Describe.class);
+    }
 
     /**
      * Uploads data from the specified byte array to the file.
