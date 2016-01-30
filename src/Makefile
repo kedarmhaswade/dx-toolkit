@@ -78,7 +78,7 @@ toolkit_version:
 	    echo UNKNOWN_VERSION > "$(DNANEXUS_HOME)/build/info/version"; \
 	fi)
 	(if [ -d "$(DNANEXUS_HOME)/.git" ]; then \
-	    VERSION=$$(git describe --always|sed 's/-/+/'); \
+	    VERSION=$$((git describe --match 'v*.*.*' || git rev-parse --short HEAD) | sed -e 's/-[0-9]-/+/'); \
 	    echo "version = '$${VERSION/#v/}'" > "$(DNANEXUS_HOME)/src/python/dxpy/toolkit_version.py"; \
 	    echo $$VERSION | perl -ne '/^v(\d+.\d+.\d+)/ and print "module DX\n  VERSION = \"$$1\"\nend\n"' > "$(DNANEXUS_HOME)/src/ruby/lib/dxruby/version.rb"; \
 	    echo -e "package com.dnanexus;\nclass DXToolkitVersion {\n    public static final String TOOLKIT_VERSION = \"$$VERSION\";\n}" > "$(DNANEXUS_HOME)/src/java/src/main/java/com/dnanexus/DXToolkitVersion.java"; \
@@ -124,10 +124,11 @@ python: api_wrappers toolkit_version $(DNANEXUS_HOME)/bin/dx
 
 $(DNANEXUS_HOME)/bin/dx: $(shell find python/{dxpy,scripts,requirements*,setup*} -not -name toolkit_version*)
 	python -c 'import sys; exit("dx-toolkit is not compatible with Python < 2.7" if sys.version_info < (2, 7) else 0)'
-	rm -rf "$(PYTHON_LIBDIR)" "$(DX_PY_ENV)"
+	rm -rf "$(PYTHON_LIBDIR)" "$(DX_PY_ENV)" python/dist
 	virtualenv --python=python "$(DX_PY_ENV)"
-	(unset PYTHONPATH; source "$(DX_PY_ENV)/bin/activate"; pip install --upgrade -r python/requirements_setuptools.txt)
-	(unset PYTHONPATH; source "$(DX_PY_ENV)/bin/activate"; cd python; pip install --ignore-installed --prefix="$(DNANEXUS_HOME)" .)
+	unset PYTHONPATH; source "$(DX_PY_ENV)/bin/activate"; pip install --upgrade -r python/requirements_setuptools.txt
+	unset PYTHONPATH; source "$(DX_PY_ENV)/bin/activate"; cd python; python setup.py bdist_wheel
+	unset PYTHONPATH; source "$(DX_PY_ENV)/bin/activate"; pip install --ignore-installed --prefix="$(DNANEXUS_HOME)" python/dist/*.whl
 	mkdir -p "$$(dirname '$(PYTHON_LIBDIR)')"
 	mv "$(DNANEXUS_HOME)"/lib/python?.?/site-packages "$(PYTHON_LIBDIR)" || mv "$(DNANEXUS_HOME)"/site-packages "$(PYTHON_LIBDIR)"
 	rm -f "$(DNANEXUS_HOME)/bin/xattr"
@@ -368,7 +369,13 @@ boost_build:
 
 curl: c-ares/stage/lib/libcares.la curl/stage/lib/libcurl.la
 
-CURL_PV=7.45.0
+CURL_MAJOR=7
+CURL_MINOR=45
+CURL_MICRO=0
+CURL_PV=$(CURL_MAJOR).$(CURL_MINOR).$(CURL_MICRO)
+CURL_PV_UNDERSCORES=$(CURL_MAJOR)_$(CURL_MINOR)_$(CURL_MICRO)
+CURL_MIRROR=https://github.com/bagder/curl/releases/download
+CURL_URL=$(CURL_MIRROR)/curl-$(CURL_PV_UNDERSCORES)/curl-$(CURL_PV).tar.gz
 CURL_SHA=e44fc290844c1e3c9b7f6ef9926d4366d0600514
 ifeq ($(OS), Windows_NT)
 # To build libcurl on Windows, setting a minimum Windows version is required,
@@ -391,9 +398,9 @@ else
 endif
 curl/stage/lib/libcurl.la: shasum openssl
 	mkdir -p curl
-	curl ${UBUNTU_MIRROR}/pool/main/c/curl/curl_${CURL_PV}.orig.tar.gz > curl-${CURL_PV}.tar.gz
-	[[ $$(shasum curl-${CURL_PV}.tar.gz|cut -f 1 -d ' ') == $(CURL_SHA) ]]
-	tar -xzf curl-${CURL_PV}.tar.gz -C curl --strip-components=1
+	curl -L $(CURL_URL) > curl-$(CURL_PV).tar.gz
+	[[ $$(shasum curl-$(CURL_PV).tar.gz|cut -f 1 -d ' ') == $(CURL_SHA) ]]
+	tar -xzf curl-$(CURL_PV).tar.gz -C curl --strip-components=1
 	cd curl; ./configure --disable-ldap --disable-ldaps \
 	    --disable-rtsp --disable-dict --disable-telnet --disable-tftp --disable-pop3 \
 	    --disable-imap --disable-smtp --disable-gopher --disable-sspi --disable-ntlm-wb \
