@@ -549,9 +549,10 @@ class ExecutableInputs(object):
             else:
                 try:
                     parsed_input_value = json.loads(input_value, object_pairs_hook=collections.OrderedDict)
-                    if not USING_PYTHON2:
-                        long = int
-                    if type(parsed_input_value) not in (collections.OrderedDict, list, int, long, float):
+                    immediate_types = {collections.OrderedDict, list, int, float}
+                    if USING_PYTHON2:
+                        immediate_types.add(long)
+                    if type(parsed_input_value) not in immediate_types:
                         raise Exception()
                 except:
                     # Not recognized JSON (list or dict), so resolve it as a name
