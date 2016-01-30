@@ -232,8 +232,7 @@ public class DXFile extends DXDataObject {
     /**
      * Deserializes a DXFile from JSON containing a DNAnexus link.
      *
-     * @param value
-     *            JSON object map
+     * @param value JSON object map
      *
      * @return data object
      */
@@ -247,60 +246,55 @@ public class DXFile extends DXDataObject {
     /**
      * Returns a {@code DXFile} associated with an existing file.
      *
-     * @throws NullPointerException
-     *             If {@code fileId} is null
+     * @throws NullPointerException If {@code fileId} is null
      */
     public static DXFile getInstance(String fileId) {
         return new DXFile(fileId, null);
     }
 
     /**
-     * Returns a {@code DXFile} associated with an existing file in a particular
-     * project or container.
+     * Returns a {@code DXFile} associated with an existing file in a particular project or
+     * container.
      *
-     * @throws NullPointerException
-     *             If {@code fileId} or {@code container} is null
+     * @throws NullPointerException If {@code fileId} or {@code container} is null
      */
     public static DXFile getInstance(String fileId, DXContainer project) {
         return new DXFile(fileId, project, null, null);
     }
 
     /**
-     * Returns a {@code DXFile} associated with an existing file in a particular
-     * project using the specified environment, with the specified cached
-     * describe output.
+     * Returns a {@code DXFile} associated with an existing file in a particular project using the
+     * specified environment, with the specified cached describe output.
      *
      * <p>
-     * This method is for use exclusively by bindings to the "find" routes when
-     * describe hashes are returned with the find output.
+     * This method is for use exclusively by bindings to the "find" routes when describe hashes are
+     * returned with the find output.
      * </p>
      *
-     * @throws NullPointerException
-     *             If any argument is null
+     * @throws NullPointerException If any argument is null
      */
-    static DXFile getInstanceWithCachedDescribe(String fileId, DXContainer project, DXEnvironment env,
-            JsonNode describe) {
+    static DXFile getInstanceWithCachedDescribe(String fileId, DXContainer project,
+            DXEnvironment env, JsonNode describe) {
         return new DXFile(fileId, project, Preconditions.checkNotNull(env, "env may not be null"),
                 Preconditions.checkNotNull(describe, "describe may not be null"));
     }
 
     /**
-     * Returns a {@code DXFile} associated with an existing file in a particular
-     * project using the specified environment.
+     * Returns a {@code DXFile} associated with an existing file in a particular project using the
+     * specified environment.
      *
-     * @throws NullPointerException
-     *             If {@code fileId} or {@code container} is null
+     * @throws NullPointerException If {@code fileId} or {@code container} is null
      */
-    public static DXFile getInstanceWithEnvironment(String fileId, DXContainer project, DXEnvironment env) {
-        return new DXFile(fileId, project, Preconditions.checkNotNull(env, "env may not be null"), null);
+    public static DXFile getInstanceWithEnvironment(String fileId, DXContainer project,
+            DXEnvironment env) {
+        return new DXFile(fileId, project, Preconditions.checkNotNull(env, "env may not be null"),
+                null);
     }
 
     /**
-     * Returns a {@code DXFile} associated with an existing file using the
-     * specified environment.
+     * Returns a {@code DXFile} associated with an existing file using the specified environment.
      *
-     * @throws NullPointerException
-     *             If {@code fileId} is null
+     * @throws NullPointerException If {@code fileId} is null
      */
     public static DXFile getInstanceWithEnvironment(String fileId, DXEnvironment env) {
         return new DXFile(fileId, Preconditions.checkNotNull(env, "env may not be null"));
@@ -316,11 +310,9 @@ public class DXFile extends DXDataObject {
     }
 
     /**
-     * Returns a Builder object for creating a new {@code DXFile} using the
-     * specified environment.
+     * Returns a Builder object for creating a new {@code DXFile} using the specified environment.
      *
-     * @param env
-     *            environment to use to make API calls
+     * @param env environment to use to make API calls
      *
      * @return a newly initialized builder object
      */
@@ -350,13 +342,15 @@ public class DXFile extends DXDataObject {
 
     @Override
     public Describe describe() {
-        return DXJSON.safeTreeToValue(apiCallOnObject("describe", RetryStrategy.SAFE_TO_RETRY), Describe.class);
+        return DXJSON.safeTreeToValue(apiCallOnObject("describe", RetryStrategy.SAFE_TO_RETRY),
+                Describe.class);
     }
 
     @Override
     public Describe describe(DescribeOptions options) {
         return DXJSON.safeTreeToValue(
-                apiCallOnObject("describe", MAPPER.valueToTree(options), RetryStrategy.SAFE_TO_RETRY), Describe.class);
+                apiCallOnObject("describe", MAPPER.valueToTree(options),
+                        RetryStrategy.SAFE_TO_RETRY), Describe.class);
     }
 
     /**

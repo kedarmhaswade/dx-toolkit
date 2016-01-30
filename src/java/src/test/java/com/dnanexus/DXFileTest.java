@@ -57,11 +57,10 @@ public class DXFileTest {
     @Test
     public void testCreateFileSerialization() throws IOException {
         Assert.assertEquals(
-                DXJSON.parseJson(
-                        "{\"project\":\"project-000011112222333344445555\", \"name\": \"foo\", \"media\": \"application/json\"}"),
-                mapper.valueToTree(
-                        DXFile.newFile().setProject(DXProject.getInstance("project-000011112222333344445555"))
-                                .setName("foo").setMediaType("application/json").buildRequestHash()));
+                DXJSON.parseJson("{\"project\":\"project-000011112222333344445555\", \"name\": \"foo\", \"media\": \"application/json\"}"),
+                mapper.valueToTree(DXFile.newFile()
+                        .setProject(DXProject.getInstance("project-000011112222333344445555"))
+                        .setName("foo").setMediaType("application/json").buildRequestHash()));
     }
 
     @Test
@@ -73,12 +72,13 @@ public class DXFileTest {
 
     @Test
     public void testCustomFields() {
-        DXFile f = DXFile.newFile().setProject(testProject).setName("test").setMediaType("foo/bar").build();
+        DXFile f = DXFile.newFile().setProject(testProject).setName("test").setMediaType("foo/bar")
+                .build();
 
-        // Retrieve some fields and verify that the ones we want are there and
-        // the ones we don't
+        // Retrieve some fields and verify that the ones we want are there and the ones we don't
         // want are not there
-        DXFile.Describe describe = f.describe(DescribeOptions.get().withCustomFields(ImmutableList.of("media")));
+        DXFile.Describe describe = f.describe(DescribeOptions.get().withCustomFields(
+                ImmutableList.of("media")));
 
         Assert.assertEquals("foo/bar", describe.getMediaType());
         try {
@@ -88,8 +88,7 @@ public class DXFileTest {
             // Expected
         }
 
-        // Now describe with some complementary fields and perform the same
-        // check
+        // Now describe with some complementary fields and perform the same check
         describe = f.describe(DescribeOptions.get().withCustomFields(ImmutableList.of("name")));
 
         Assert.assertEquals("test", describe.getName());
@@ -103,7 +102,9 @@ public class DXFileTest {
 
     @Test
     public void testDescribeWithOptions() {
-        DXFile f = DXFile.newFile().setProject(testProject).setName("test").setMediaType("foo/bar").build();
+        DXFile f =
+                DXFile.newFile().setProject(testProject).setName("test").setMediaType("foo/bar")
+                        .build();
         Describe describe = f.describe(DescribeOptions.get());
         Assert.assertEquals("test", describe.getName());
         Assert.assertEquals("foo/bar", describe.getMediaType());
@@ -115,8 +116,9 @@ public class DXFileTest {
         Assert.assertEquals("file-000000000000000000000000", file.getId());
         Assert.assertEquals(null, file.getProject());
 
-        DXFile file2 = DXFile.getInstance("file-000000000000000000000001",
-                DXProject.getInstance("project-123412341234123412341234"));
+        DXFile file2 =
+                DXFile.getInstance("file-000000000000000000000001",
+                        DXProject.getInstance("project-123412341234123412341234"));
         Assert.assertEquals("file-000000000000000000000001", file2.getId());
         Assert.assertEquals("project-123412341234123412341234", file2.getProject().getId());
 
@@ -142,26 +144,29 @@ public class DXFileTest {
 
     @Test
     public void testDataObjectMethods() {
-        DXDataObjectTest.BuilderFactory<DXFile.Builder, DXFile> builderFactory = new DXDataObjectTest.BuilderFactory<DXFile.Builder, DXFile>() {
-            @Override
-            public DXFile.Builder getBuilder() {
-                return DXFile.newFile();
-            }
-        };
+        DXDataObjectTest.BuilderFactory<DXFile.Builder, DXFile> builderFactory =
+                new DXDataObjectTest.BuilderFactory<DXFile.Builder, DXFile>() {
+                    @Override
+                    public DXFile.Builder getBuilder() {
+                        return DXFile.newFile();
+                    }
+                };
         DXDataObjectTest.testOpenDataObjectMethods(testProject, builderFactory);
         // TODO: test out closed data object methods too
     }
 
     @Test
     public void testBuilder() {
-        DXDataObjectTest.testBuilder(testProject, new DXDataObjectTest.BuilderFactory<DXFile.Builder, DXFile>() {
-            @Override
-            public DXFile.Builder getBuilder() {
-                return DXFile.newFile();
-            }
-        });
+        DXDataObjectTest.testBuilder(testProject,
+                new DXDataObjectTest.BuilderFactory<DXFile.Builder, DXFile>() {
+                    @Override
+                    public DXFile.Builder getBuilder() {
+                        return DXFile.newFile();
+                    }
+                });
 
-        DXFile file = DXFile.newFile().setProject(testProject).setMediaType("application/json").build();
+        DXFile file =
+                DXFile.newFile().setProject(testProject).setMediaType("application/json").build();
         Assert.assertEquals("application/json", file.describe().getMediaType());
     }
 
