@@ -42,6 +42,9 @@ public class DXFileTest {
 
     private DXProject testProject;
 
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
+
     @Before
     public void setUp() {
         testProject = DXProject.newProject().setName("DXFileTest").build();
@@ -52,6 +55,21 @@ public class DXFileTest {
         if (testProject != null) {
             testProject.destroy();
         }
+    }
+
+    @Test
+    public void testBuilder() {
+        DXDataObjectTest.testBuilder(testProject,
+                new DXDataObjectTest.BuilderFactory<DXFile.Builder, DXFile>() {
+                    @Override
+                    public DXFile.Builder getBuilder() {
+                        return DXFile.newFile();
+                    }
+                });
+
+        DXFile file =
+                DXFile.newFile().setProject(testProject).setMediaType("application/json").build();
+        Assert.assertEquals("application/json", file.describe().getMediaType());
     }
 
     @Test
@@ -101,6 +119,19 @@ public class DXFileTest {
     }
 
     @Test
+    public void testDataObjectMethods() {
+        DXDataObjectTest.BuilderFactory<DXFile.Builder, DXFile> builderFactory =
+                new DXDataObjectTest.BuilderFactory<DXFile.Builder, DXFile>() {
+                    @Override
+                    public DXFile.Builder getBuilder() {
+                        return DXFile.newFile();
+                    }
+                };
+        DXDataObjectTest.testOpenDataObjectMethods(testProject, builderFactory);
+        // TODO: test out closed data object methods too
+    }
+
+    @Test
     public void testDescribeWithOptions() {
         DXFile f =
                 DXFile.newFile().setProject(testProject).setName("test").setMediaType("foo/bar")
@@ -108,6 +139,16 @@ public class DXFileTest {
         Describe describe = f.describe(DescribeOptions.get());
         Assert.assertEquals("test", describe.getName());
         Assert.assertEquals("foo/bar", describe.getMediaType());
+    }
+
+    @Test
+    public void testDownloadFails() {
+        DXFile f = DXFile.newFile().setProject(testProject).build();
+
+        // Nothing uploaded to the file
+        // The file cannot be downloaded because it is not in the 'closed' state
+        thrown.expect(InvalidStateException.class);
+        f.downloadBytes();
     }
 
     @Test
@@ -143,82 +184,6 @@ public class DXFileTest {
     }
 
     @Test
-    public void testDataObjectMethods() {
-        DXDataObjectTest.BuilderFactory<DXFile.Builder, DXFile> builderFactory =
-                new DXDataObjectTest.BuilderFactory<DXFile.Builder, DXFile>() {
-                    @Override
-                    public DXFile.Builder getBuilder() {
-                        return DXFile.newFile();
-                    }
-                };
-        DXDataObjectTest.testOpenDataObjectMethods(testProject, builderFactory);
-        // TODO: test out closed data object methods too
-    }
-
-    @Test
-    public void testBuilder() {
-        DXDataObjectTest.testBuilder(testProject,
-                new DXDataObjectTest.BuilderFactory<DXFile.Builder, DXFile>() {
-                    @Override
-                    public DXFile.Builder getBuilder() {
-                        return DXFile.newFile();
-                    }
-                });
-
-        DXFile file =
-                DXFile.newFile().setProject(testProject).setMediaType("application/json").build();
-        Assert.assertEquals("application/json", file.describe().getMediaType());
-    }
-
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
-
-    @Test
-    public void testDownloadFails() {
-        DXFile f = DXFile.newFile().setProject(testProject).build();
-
-        // Nothing uploaded to the file
-        // The file cannot be downloaded because it is not in the 'closed' state
-        thrown.expect(InvalidStateException.class);
-        f.downloadBytes();
-    }
-
-    @Test
-    public void testUploadNullBytesFails() {
-        byte[] uploadBytes = null;
-
-        DXFile f = DXFile.newFile().setProject(testProject).build();
-        thrown.expect(NullPointerException.class);
-        f.upload(uploadBytes);
-    }
-
-    @Test
-    public void testUploadNullBytesBuilderFails() {
-        byte[] uploadBytes = null;
-
-        thrown.expect(NullPointerException.class);
-        DXFile.newFile().setProject(testProject).upload(uploadBytes).build();
-
-    }
-
-    @Test
-    public void testUploadNullStreamFails() {
-        InputStream uploadBytes = null;
-
-        DXFile f = DXFile.newFile().setProject(testProject).build();
-        thrown.expect(NullPointerException.class);
-        f.upload(uploadBytes);
-    }
-
-    @Test
-    public void testUploadNullStreamBuilderFails() {
-        InputStream uploadBytes = null;
-
-        thrown.expect(NullPointerException.class);
-        DXFile.newFile().setProject(testProject).upload(uploadBytes).build();
-    }
-
-    @Test
     public void testUploadBytesDownloadBytes() {
         // With string data
         String uploadData = "Test";
@@ -237,29 +202,9 @@ public class DXFileTest {
     }
 
     @Test
-    public void testUploadStreamDownloadStream() {
-        // With string data
-        String uploadData = "Test";
-        InputStream uploadStream = IOUtils.toInputStream(uploadData);
-
-        DXFile f = DXFile.newFile().setProject(testProject).build();
-        f.upload(uploadStream);
-        f.closeAndWait();
-        ByteArrayOutputStream baos = (ByteArrayOutputStream) f.downloadStream();
-        byte[] bytesFromDownloadStream = baos.toByteArray();
-
-        Assert.assertArrayEquals(uploadData.getBytes(), bytesFromDownloadStream);
-
-        // Download again
-        baos = (ByteArrayOutputStream) f.downloadStream();
-        bytesFromDownloadStream = baos.toByteArray();
-        Assert.assertArrayEquals(uploadData.getBytes(), bytesFromDownloadStream);
-    }
-
-    @Test
-    public void testUploadDownloadEmpty() {
-        // Upload bytes, download bytes
-        byte[] uploadBytes = new byte[0];
+    public void testUploadDownloadBinary() {
+        String uploadData = Integer.toBinaryString(12345678);
+        byte[] uploadBytes = uploadData.getBytes();
 
         DXFile f = DXFile.newFile().setProject(testProject).build();
         f.upload(uploadBytes);
@@ -267,17 +212,6 @@ public class DXFileTest {
         byte[] downloadBytes = f.downloadBytes();
 
         Assert.assertArrayEquals(uploadBytes, downloadBytes);
-
-        // Upload stream, download stream
-        InputStream uploadStream = new ByteArrayInputStream(uploadBytes);
-
-        f = DXFile.newFile().setProject(testProject).build();
-        f.upload(uploadStream);
-        f.closeAndWait();
-        ByteArrayOutputStream baos = (ByteArrayOutputStream) f.downloadStream();
-        byte[] bytesFromDownloadStream = baos.toByteArray();
-
-        Assert.assertArrayEquals(uploadBytes, bytesFromDownloadStream);
     }
 
     @Test
@@ -317,9 +251,9 @@ public class DXFileTest {
     }
 
     @Test
-    public void testUploadDownloadBinary() {
-        String uploadData = Integer.toBinaryString(12345678);
-        byte[] uploadBytes = uploadData.getBytes();
+    public void testUploadDownloadEmpty() {
+        // Upload bytes, download bytes
+        byte[] uploadBytes = new byte[0];
 
         DXFile f = DXFile.newFile().setProject(testProject).build();
         f.upload(uploadBytes);
@@ -327,6 +261,17 @@ public class DXFileTest {
         byte[] downloadBytes = f.downloadBytes();
 
         Assert.assertArrayEquals(uploadBytes, downloadBytes);
+
+        // Upload stream, download stream
+        InputStream uploadStream = new ByteArrayInputStream(uploadBytes);
+
+        f = DXFile.newFile().setProject(testProject).build();
+        f.upload(uploadStream);
+        f.closeAndWait();
+        ByteArrayOutputStream baos = (ByteArrayOutputStream) f.downloadStream();
+        byte[] bytesFromDownloadStream = baos.toByteArray();
+
+        Assert.assertArrayEquals(uploadBytes, bytesFromDownloadStream);
     }
 
     @Test
@@ -341,5 +286,60 @@ public class DXFileTest {
         byte[] downloadBytes = f.downloadBytes();
 
         Assert.assertArrayEquals(uploadBytes, downloadBytes);
+    }
+
+    @Test
+    public void testUploadNullBytesBuilderFails() {
+        byte[] uploadBytes = null;
+
+        thrown.expect(NullPointerException.class);
+        DXFile.newFile().setProject(testProject).upload(uploadBytes).build();
+
+    }
+
+    @Test
+    public void testUploadNullBytesFails() {
+        byte[] uploadBytes = null;
+
+        DXFile f = DXFile.newFile().setProject(testProject).build();
+        thrown.expect(NullPointerException.class);
+        f.upload(uploadBytes);
+    }
+
+    @Test
+    public void testUploadNullStreamBuilderFails() {
+        InputStream uploadBytes = null;
+
+        thrown.expect(NullPointerException.class);
+        DXFile.newFile().setProject(testProject).upload(uploadBytes).build();
+    }
+
+    @Test
+    public void testUploadNullStreamFails() {
+        InputStream uploadBytes = null;
+
+        DXFile f = DXFile.newFile().setProject(testProject).build();
+        thrown.expect(NullPointerException.class);
+        f.upload(uploadBytes);
+    }
+
+    @Test
+    public void testUploadStreamDownloadStream() {
+        // With string data
+        String uploadData = "Test";
+        InputStream uploadStream = IOUtils.toInputStream(uploadData);
+
+        DXFile f = DXFile.newFile().setProject(testProject).build();
+        f.upload(uploadStream);
+        f.closeAndWait();
+        ByteArrayOutputStream baos = (ByteArrayOutputStream) f.downloadStream();
+        byte[] bytesFromDownloadStream = baos.toByteArray();
+
+        Assert.assertArrayEquals(uploadData.getBytes(), bytesFromDownloadStream);
+
+        // Download again
+        baos = (ByteArrayOutputStream) f.downloadStream();
+        bytesFromDownloadStream = baos.toByteArray();
+        Assert.assertArrayEquals(uploadData.getBytes(), bytesFromDownloadStream);
     }
 }
