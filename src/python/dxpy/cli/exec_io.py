@@ -551,7 +551,7 @@ class ExecutableInputs(object):
                     parsed_input_value = json.loads(input_value, object_pairs_hook=collections.OrderedDict)
                     immediate_types = {collections.OrderedDict, list, int, float}
                     if USING_PYTHON2:
-                        immediate_types.add(long)
+                        immediate_types.add(long) # noqa
                     if type(parsed_input_value) not in immediate_types:
                         raise Exception()
                 except:
