@@ -58,21 +58,6 @@ public class DXFileTest {
     }
 
     @Test
-    public void testBuilder() {
-        DXDataObjectTest.testBuilder(testProject,
-                new DXDataObjectTest.BuilderFactory<DXFile.Builder, DXFile>() {
-                    @Override
-                    public DXFile.Builder getBuilder() {
-                        return DXFile.newFile();
-                    }
-                });
-
-        DXFile file =
-                DXFile.newFile().setProject(testProject).setMediaType("application/json").build();
-        Assert.assertEquals("application/json", file.describe().getMediaType());
-    }
-
-    @Test
     public void testCreateFileSerialization() throws IOException {
         Assert.assertEquals(
                 DXJSON.parseJson("{\"project\":\"project-000011112222333344445555\", \"name\": \"foo\", \"media\": \"application/json\"}"),
@@ -341,5 +326,20 @@ public class DXFileTest {
         baos = (ByteArrayOutputStream) f.downloadStream();
         bytesFromDownloadStream = baos.toByteArray();
         Assert.assertArrayEquals(uploadData.getBytes(), bytesFromDownloadStream);
+    }
+
+    @Test
+    public void testBuilder() {
+        DXDataObjectTest.testBuilder(testProject,
+                new DXDataObjectTest.BuilderFactory<DXFile.Builder, DXFile>() {
+                    @Override
+                    public DXFile.Builder getBuilder() {
+                        return DXFile.newFile();
+                    }
+                });
+
+        DXFile file =
+                DXFile.newFile().setProject(testProject).setMediaType("application/json").build();
+        Assert.assertEquals("application/json", file.describe().getMediaType());
     }
 }
