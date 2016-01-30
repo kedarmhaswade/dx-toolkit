@@ -177,38 +177,38 @@ public class DXFileTest {
 		thrown.expect(InvalidStateException.class);
 		f.downloadBytes();
 	}
-	
+
 	@Test
 	public void testUploadNullBytesFails() {
 		byte[] uploadBytes = null;
-		
+
 		DXFile f = DXFile.newFile().setProject(testProject).build();
 		thrown.expect(NullPointerException.class);
 		f.upload(uploadBytes);
 	}
-	
+
 	@Test
 	public void testUploadNullBytesBuilderFails() {
 		byte[] uploadBytes = null;
-		
+
 		thrown.expect(NullPointerException.class);
 		DXFile.newFile().setProject(testProject).upload(uploadBytes).build();
-		
+
 	}
-	
+
 	@Test
 	public void testUploadNullStreamFails() {
 		InputStream uploadBytes = null;
-		
+
 		DXFile f = DXFile.newFile().setProject(testProject).build();
 		thrown.expect(NullPointerException.class);
 		f.upload(uploadBytes);
 	}
-	
+
 	@Test
 	public void testUploadNullStreamBuilderFails() {
 		InputStream uploadBytes = null;
-		
+
 		thrown.expect(NullPointerException.class);
 		DXFile.newFile().setProject(testProject).upload(uploadBytes).build();
 	}
