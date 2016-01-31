@@ -18,6 +18,13 @@ matrix:
     - language: generic
       python: 2.7
       os: osx
+    - language: generic
+      python: 3.4
+      os: osx
+    - language: generic
+      jdk: oraclejdk8
+    - language: generic
+      jdk: openjdk7
 
 # See https://github.com/travis-ci/travis-ci/issues/2839
 before_install:
