@@ -209,18 +209,6 @@ def _download_dxfile(dxid, filename, part_retry_counter,
             print_progress(last_verified_pos, file_size, action="Resuming at")
         logger.debug("Verified %s/%d downloaded parts", last_verified_part, len(parts_to_get))
 
-    # This is a debugging function. It searches through the list of
-    # md5 hashes, and finds the (first) part-id that has this hash. If
-    # no part matches, None is returned.
-    def dbg_find_part_id_from_md5(md5hex):
-        for part_id in parts_to_get:
-            part_info = parts[part_id]
-            if "md5" not in part_info:
-                raise DXFileError("File {} does not contain part md5 checksums".format(dxfile.get_id()))
-            if md5hex == part_info["md5"]:
-                return part_id
-        return None
-
     def get_chunk(part_id_to_get, start, end):
         url, headers = dxfile.get_download_url(project=project, **kwargs)
         headers = dict(headers)
@@ -248,9 +236,8 @@ def _download_dxfile(dxid, filename, part_retry_counter,
         if hasher is not None and "md5" not in parts[_part_id]:
             warnings.warn("Download of file {} is not being checked for integrity".format(dxfile.get_id()))
         elif hasher is not None and hasher.hexdigest() != parts[_part_id]["md5"]:
-            src_part = dbg_find_part_id_from_md5(hasher.hexdigest())
-            msg = "Checksum mismatch in {} part {} (expected {}, got {} matching part {})"
-            msg = msg.format(dxfile.get_id(), _part_id, parts[_part_id]["md5"], hasher.hexdigest(), src_part)
+            msg = "Checksum mismatch in {} part {} (expected {}, got {})"
+            msg = msg.format(dxfile.get_id(), _part_id, parts[_part_id]["md5"], hasher.hexdigest())
             raise DXChecksumMismatchError(msg)
 
     try:
@@ -258,8 +245,6 @@ def _download_dxfile(dxid, filename, part_retry_counter,
         dxfile._ensure_http_threadpool()
         for chunk_part, chunk_data in response_iterator(chunk_requests(), dxfile._http_threadpool):
             if chunk_part != cur_part:
-                if (cur_part is not None and int(chunk_part) != int(cur_part) + 1):
-                    raise AssertionError("Expecting part {}, got part {}".format(int(cur_part)+1, chunk_part))
                 verify_part(cur_part, got_bytes, hasher)
                 cur_part, got_bytes, hasher = chunk_part, 0, hashlib.md5()
             got_bytes += len(chunk_data)
