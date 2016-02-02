@@ -20,7 +20,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
+import java.util.Random;
 
 import org.apache.commons.io.IOUtils;
 import org.junit.After;
@@ -31,6 +31,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import com.dnanexus.DXDataObject.DescribeOptions;
+import com.dnanexus.DXFile.Builder;
 import com.dnanexus.DXFile.Describe;
 import com.dnanexus.exceptions.InvalidStateException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -263,7 +264,7 @@ public class DXFileTest {
     public void testUploadDownloadMediumSizeData() {
         // Upload 10mb
         byte[] uploadBytes = new byte[10 * 1024 * 1024];
-        Arrays.fill(uploadBytes, (byte) 1);
+        new Random().nextBytes(uploadBytes);
 
         DXFile f = DXFile.newFile().setProject(testProject).build();
         f.upload(uploadBytes);
@@ -275,37 +276,30 @@ public class DXFileTest {
 
     @Test
     public void testUploadNullBytesBuilderFails() {
-        byte[] uploadBytes = null;
-
+        Builder b = DXFile.newFile().setProject(testProject);
         thrown.expect(NullPointerException.class);
-        DXFile.newFile().setProject(testProject).upload(uploadBytes).build();
-
+        b.upload((byte[]) null);
     }
 
     @Test
     public void testUploadNullBytesFails() {
-        byte[] uploadBytes = null;
-
         DXFile f = DXFile.newFile().setProject(testProject).build();
         thrown.expect(NullPointerException.class);
-        f.upload(uploadBytes);
+        f.upload((byte[]) null);
     }
 
     @Test
     public void testUploadNullStreamBuilderFails() {
-        InputStream uploadBytes = null;
-
+        Builder b = DXFile.newFile().setProject(testProject);
         thrown.expect(NullPointerException.class);
-        DXFile.newFile().setProject(testProject).upload(uploadBytes).build();
+        b.upload((InputStream) null);
     }
 
     @Test
     public void testUploadNullStreamFails() {
-        InputStream uploadBytes = null;
-
         DXFile f = DXFile.newFile().setProject(testProject).build();
         thrown.expect(NullPointerException.class);
-        f.upload(uploadBytes);
+        f.upload((InputStream) null);
     }
 
     @Test

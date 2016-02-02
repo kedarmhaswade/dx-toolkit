@@ -120,7 +120,7 @@ public class DXFile extends DXDataObject {
         /**
          * Uploads the data in the specified byte array to the file to be created.
          *
-         * @param data Data to be uploaded
+         * @param data data to be uploaded
          *
          * @return the same {@code Builder} object
          */
@@ -133,7 +133,7 @@ public class DXFile extends DXDataObject {
         /**
          * Uploads the data in the specified stream to the file to be created.
          *
-         * @param data Stream containing data to be uploaded
+         * @param data stream containing data to be uploaded
          *
          * @return the same {@code Builder} object
          */
@@ -354,7 +354,8 @@ public class DXFile extends DXDataObject {
     }
 
     /**
-     * Downloads the file and returns a byte array of its contents.
+     * Downloads the file and returns a byte array of its contents. <b>This implementation buffers
+     * the contents of the file in-memory; therefore, the file must be small.</b>
      *
      * @return byte array containing file contents
      */
@@ -387,7 +388,9 @@ public class DXFile extends DXDataObject {
     }
 
     /**
-     * Downloads the file and returns a stream of its contents
+     * Downloads the file and returns a stream of its contents. <b>This implementation buffers the
+     * contents of the file in-memory before the contents are written into the stream; therefore,
+     * the file must be small enough to be buffered in memory.</b>
      *
      * @return stream containing file contents
      */
@@ -410,7 +413,8 @@ public class DXFile extends DXDataObject {
     }
 
     /**
-     * Uploads data from the specified byte array to the file.
+     * Uploads data from the specified byte array to the file. <b>This implementation buffers the
+     * data in-memory before being uploaded to the server; therefore, the data must be small.</b>
      *
      * <p>
      * The file must be in the "open" state. This method assumes exclusive access to the file: the
@@ -472,7 +476,14 @@ public class DXFile extends DXDataObject {
     }
 
     /**
-     * Uploads data from the specified stream to the file.
+     * Uploads data from the specified stream to the file. <b>This implementation buffers the
+     * data in-memory before being uploaded to the server; therefore, the data must be small.</b>
+     *
+     * <p>
+     * The file must be in the "open" state. This method assumes exclusive access to the file: the
+     * file must have no parts uploaded before this call is made, and no other clients may upload
+     * data to the same file concurrently.
+     * </p>
      *
      * @param data stream containing data to be uploaded
      */
