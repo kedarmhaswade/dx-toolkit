@@ -191,6 +191,7 @@ _RequestForAuth = namedtuple('_RequestForAuth', 'method url headers')
 _expected_exceptions = exceptions.network_exceptions + \
                        (exceptions.DXAPIError, BadStatusLine, exceptions.BadJSONInReply)
 
+
 # Create a pool structure, and cache it.
 def _get_pool_manager_lo(verify, cert_file, key_file):
     global _pool_manager
@@ -215,6 +216,7 @@ def _get_pool_manager_lo(verify, cert_file, key_file):
             urllib3.disable_warnings()
         return urllib3.PoolManager(**pool_args)
 
+
 # Wrap the basic pool structure with some safety retries.
 # There is a possibility, which we do not fully understand at the moment,
 # to encounter a ClosedPoolError exception. To get around this, we reset
@@ -226,6 +228,7 @@ def _get_pool_manager(verify, cert_file, key_file):
         global _pool_manager
         _pool_manager = None
         return _get_pool_manager_lo(verify, cert_file, key_file)
+
 
 def _process_method_url_headers(method, url, headers):
     if callable(url):
