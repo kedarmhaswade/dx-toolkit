@@ -191,7 +191,8 @@ _RequestForAuth = namedtuple('_RequestForAuth', 'method url headers')
 _expected_exceptions = exceptions.network_exceptions + \
                        (exceptions.DXAPIError, BadStatusLine, exceptions.BadJSONInReply)
 
-def _get_pool_manager(verify, cert_file, key_file):
+# Create a pool structure, and cache it.
+def _get_pool_manager_lo(verify, cert_file, key_file):
     global _pool_manager
     default_pool_args = dict(maxsize=32,
                              cert_reqs=ssl.CERT_REQUIRED,
@@ -203,6 +204,8 @@ def _get_pool_manager(verify, cert_file, key_file):
             _pool_manager = urllib3.PoolManager(**default_pool_args)
         return _pool_manager
     else:
+        # An uncommon case, for testing (?). It creates a new pool every
+        # call, and does not cache it.
         pool_args = dict(default_pool_args,
                          cert_file=cert_file,
                          key_file=key_file,
@@ -211,6 +214,18 @@ def _get_pool_manager(verify, cert_file, key_file):
             pool_args.update(cert_reqs=ssl.CERT_NONE, ca_certs=None)
             urllib3.disable_warnings()
         return urllib3.PoolManager(**pool_args)
+
+# Wrap the basic pool structure with some safety retries.
+# There is a possibility, which we do not fully understand at the moment,
+# to encounter a ClosedPoolError exception. To get around this, we reset
+# the pool and try again.
+def _get_pool_manager(verify, cert_file, key_file):
+    try:
+        return _get_pool_manager_lo(verify, cert_file, key_file)
+    except ClosedPoolError:
+        global _pool_manager
+        _pool_manager = None
+        return _get_pool_manager_lo(verify, cert_file, key_file)
 
 def _process_method_url_headers(method, url, headers):
     if callable(url):
@@ -285,6 +300,83 @@ def _extract_retry_after_timeout(response):
     return max(1, seconds_to_wait)
 
 
+# Note: the response is returned inside a list structure, because a
+# list structure can be mutated.
+def _process_request(method, url, headers, want_full_response, decode_response_body, timeout,
+                     data, response_wrap, pool, **kwargs):
+    time_started = None
+    if _DEBUG > 0:
+        time_started = time.time()
+    _method, _url, _headers = _process_method_url_headers(method, url, headers)
+
+    # throws BadStatusLine if the server returns nothing
+    response = pool.request(_method, _url, headers=_headers, body=data,
+                            timeout=timeout, retries=False, **kwargs)
+    response_wrap[0] = response
+
+    global _UPGRADE_NOTIFY
+    if _UPGRADE_NOTIFY and response.headers.get('x-upgrade-info', '').startswith('A recommended update is available') and '_ARGCOMPLETE' not in os.environ:
+        logger.info(response.headers['x-upgrade-info'])
+        try:
+            with file(_UPGRADE_NOTIFY, 'a'):
+                os.utime(_UPGRADE_NOTIFY, None)
+        except:
+            pass
+        _UPGRADE_NOTIFY = False
+
+    # If an HTTP code that is not in the 200 series is received and the content is JSON, parse it and throw the
+    # appropriate error.  Otherwise, raise the usual exception.
+    if response.status // 100 != 2:
+        # response.headers key lookup is case-insensitive
+        if response.headers.get('content-type', '').startswith('application/json'):
+            content = response.data.decode('utf-8')
+            try:
+                content = json.loads(content)
+            except ValueError:
+                # The JSON is not parsable, but we should be able to retry.
+                raise exceptions.BadJSONInReply("Invalid JSON received from server", response.status)
+            try:
+                error_class = getattr(exceptions, content["error"]["type"], exceptions.DXAPIError)
+            except (KeyError, AttributeError, TypeError):
+                error_class = exceptions.HTTPError
+            raise error_class(content, response.status)
+        raise exceptions.HTTPError("{} {}".format(response.status, response.reason))
+
+    if want_full_response:
+        return response
+
+    if 'content-length' in response.headers:
+        if int(response.headers['content-length']) != len(response.data):
+            range_str = (' (%s)' % (headers['Range'],)) if 'Range' in headers else ''
+            raise exceptions.ContentLengthError(
+                "Received response with content-length header set to %s but content length is %d%s" %
+                (response.headers['content-length'], len(response.data), range_str)
+            )
+
+    content = response.data
+
+    if decode_response_body:
+        content = content.decode('utf-8')
+        if response.headers.get('content-type', '').startswith('application/json'):
+            try:
+                content = json.loads(content)
+            except ValueError:
+                # The JSON is not parsable, but we should be able to retry.
+                raise exceptions.BadJSONInReply("Invalid JSON received from server", response.status)
+            if _DEBUG > 0:
+                t = int((time.time() - time_started) * 1000)
+            if _DEBUG >= 3:
+                print(method, url, "<=", response.status, "(%dms)" % t,
+                      "\n" + json.dumps(content, indent=2), file=sys.stderr)
+            elif _DEBUG == 2:
+                print(method, url, "<=", response.status, "(%dms)" % t, json.dumps(content),
+                      file=sys.stderr)
+            elif _DEBUG > 0:
+                print(method, url, "<=", response.status, "(%dms)" % t, Repr().repr(content),
+                      file=sys.stderr)
+    return content
+
+
 def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
                   timeout=DEFAULT_TIMEOUT,
                   use_compression=None, jsonify_data=True, want_full_response=False,
@@ -347,8 +439,6 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
     if headers is None:
         headers = {}
 
-    global _UPGRADE_NOTIFY
-
     url = APISERVER + resource if prepend_srv else resource
     method = method.upper() # Convert method name to uppercase, to ease string comparisons later
     if _DEBUG >= 3:
@@ -390,83 +480,20 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
 
     try_index = 0
     while True:
-        success, time_started = True, None
-        response = None
+        # Wrap the response, so we can change it in the process-request function.
+        # A list allows changing its content.
+        response_wrap = [None]
+        success = True
+        pool = _get_pool_manager(**pool_args)
         try:
-            if _DEBUG > 0:
-                time_started = time.time()
-            _method, _url, _headers = _process_method_url_headers(method, url, headers)
-
-            # throws BadStatusLine if the server returns nothing
-            response = _get_pool_manager(**pool_args).request(_method, _url, headers=_headers, body=data,
-                                                              timeout=timeout, retries=False, **kwargs)
-
-            if _UPGRADE_NOTIFY and response.headers.get('x-upgrade-info', '').startswith('A recommended update is available') and '_ARGCOMPLETE' not in os.environ:
-                logger.info(response.headers['x-upgrade-info'])
-                try:
-                    with file(_UPGRADE_NOTIFY, 'a'):
-                        os.utime(_UPGRADE_NOTIFY, None)
-                except:
-                    pass
-                _UPGRADE_NOTIFY = False
-
-            # If an HTTP code that is not in the 200 series is received and the content is JSON, parse it and throw the
-            # appropriate error.  Otherwise, raise the usual exception.
-            if response.status // 100 != 2:
-                # response.headers key lookup is case-insensitive
-                if response.headers.get('content-type', '').startswith('application/json'):
-                    content = response.data.decode('utf-8')
-                    try:
-                        content = json.loads(content)
-                    except ValueError:
-                        # The JSON is not parsable, but we should be able to retry.
-                        raise exceptions.BadJSONInReply("Invalid JSON received from server", response.status)
-                    try:
-                        error_class = getattr(exceptions, content["error"]["type"], exceptions.DXAPIError)
-                    except (KeyError, AttributeError, TypeError):
-                        error_class = exceptions.HTTPError
-                    raise error_class(content, response.status)
-                raise exceptions.HTTPError("{} {}".format(response.status, response.reason))
-
-            if want_full_response:
-                return response
-            else:
-                if 'content-length' in response.headers:
-                    if int(response.headers['content-length']) != len(response.data):
-                        range_str = (' (%s)' % (headers['Range'],)) if 'Range' in headers else ''
-                        raise exceptions.ContentLengthError(
-                            "Received response with content-length header set to %s but content length is %d%s" %
-                            (response.headers['content-length'], len(response.data), range_str)
-                        )
-
-                content = response.data
-
-                if decode_response_body:
-                    content = content.decode('utf-8')
-                    if response.headers.get('content-type', '').startswith('application/json'):
-                        try:
-                            content = json.loads(content)
-                        except ValueError:
-                            # The JSON is not parsable, but we should be able to retry.
-                            raise exceptions.BadJSONInReply("Invalid JSON received from server", response.status)
-                        if _DEBUG > 0:
-                            t = int((time.time() - time_started) * 1000)
-                        if _DEBUG >= 3:
-                            print(method, url, "<=", response.status, "(%dms)" % t,
-                                  "\n" + json.dumps(content, indent=2), file=sys.stderr)
-                        elif _DEBUG == 2:
-                            print(method, url, "<=", response.status, "(%dms)" % t, json.dumps(content),
-                                  file=sys.stderr)
-                        elif _DEBUG > 0:
-                            print(method, url, "<=", response.status, "(%dms)" % t, Repr().repr(content),
-                                  file=sys.stderr)
-                return content
-            raise AssertionError('Should never reach this line: expected a result to have been returned by now')
+            return _process_request(method, url, headers, want_full_response, decode_response_body, timeout,
+                                    data, response_wrap, pool, **kwargs)
         except Exception as e:
+            response = response_wrap[0]
             # Avoid reusing connections in the pool, since they may be
             # in an inconsistent state (observed as "ResponseNotReady"
             # errors).
-            _get_pool_manager(**pool_args).clear()
+            pool.clear()
             success = False
             exception_msg = _extract_msg_from_last_exception()
             if isinstance(e, _expected_exceptions):
@@ -520,6 +547,7 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
 
         raise AssertionError('Should never reach this line: should have attempted a retry or reraised by now')
     raise AssertionError('Should never reach this line: should never break out of loop')
+
 
 
 class DXHTTPOAuth2(AuthBase):
