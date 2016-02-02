@@ -372,6 +372,7 @@ def _process_request(method, url, headers, want_full_response, decode_response_b
                 print(method, url, "<=", response.status, "(%dms)" % t, json.dumps(content),
                       file=sys.stderr)
             elif _DEBUG > 0:
+                from repr import Repr
                 print(method, url, "<=", response.status, "(%dms)" % t, Repr().repr(content),
                       file=sys.stderr)
     return content
