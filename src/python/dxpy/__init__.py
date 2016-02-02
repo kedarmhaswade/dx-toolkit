@@ -318,7 +318,9 @@ def _process_request(method, url, headers, want_full_response, decode_response_b
     response_wrap[0] = response
 
     global _UPGRADE_NOTIFY
-    if _UPGRADE_NOTIFY and response.headers.get('x-upgrade-info', '').startswith('A recommended update is available') and '_ARGCOMPLETE' not in os.environ:
+    if ( _UPGRADE_NOTIFY and
+        response.headers.get('x-upgrade-info', '').startswith('A recommended update is available') and
+        '_ARGCOMPLETE' not in os.environ):
         logger.info(response.headers['x-upgrade-info'])
         try:
             with file(_UPGRADE_NOTIFY, 'a'):
