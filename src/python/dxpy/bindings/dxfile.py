@@ -555,27 +555,31 @@ class DXFile(DXDataObject):
         if project is not None:
             args["project"] = project
 
-        self._url_download_mutex.acquire()
-        if self._download_url is None or self._download_url_expires < time.time():
-            # The idea here is to cache a download URL for the entire file, that will
-            # be good for a few minutes. This avoids each thread having to ask the
-            # server for a URL, increasing server load.
-            #
-            # To avoid thread race conditions, this check/update procedure is protected
-            # with a lock.
+        try:
+            self._url_download_mutex.acquire()
+            if self._download_url is None or self._download_url_expires < time.time():
+                # The idea here is to cache a download URL for the entire file, that will
+                # be good for a few minutes. This avoids each thread having to ask the
+                # server for a URL, increasing server load.
+                #
+                # To avoid thread race conditions, this check/update procedure is protected
+                # with a lock.
 
-            # logging.debug("Download URL unset or expired, requesting a new one")
-            if "timeout" not in kwargs:
-                kwargs["timeout"] = FILE_REQUEST_TIMEOUT
-            resp = dxpy.api.file_download(self._dxid, args, **kwargs)
-            self._download_url = resp["url"]
-            self._download_url_headers = resp.get("headers", {})
-            self._download_url_expires = time.time() + duration - 60 # Try to account for drift
+                # logging.debug("Download URL unset or expired, requesting a new one")
+                if "timeout" not in kwargs:
+                    kwargs["timeout"] = FILE_REQUEST_TIMEOUT
+                resp = dxpy.api.file_download(self._dxid, args, **kwargs)
+                self._download_url = resp["url"]
+                self._download_url_headers = resp.get("headers", {})
+                self._download_url_expires = time.time() + duration - 60 # Try to account for drift
 
-        # Make a defensive copy of headers dict, because it is a mutable dictionary.
-        retval_download_url = self._download_url
-        retval_download_url_headers = copy.copy(self._download_url_headers)
-        self._url_download_mutex.release()
+            # Make a defensive copy of headers dict, because it is a mutable dictionary.
+            retval_download_url = self._download_url
+            retval_download_url_headers = copy.copy(self._download_url_headers)
+        finally:
+            self._url_download_mutex.release()
+        except:
+            raise
 
         return retval_download_url, retval_download_url_headers
 
