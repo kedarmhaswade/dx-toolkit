@@ -147,10 +147,6 @@ def download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append
     parts_to_get = sorted(parts, key=int)
     file_size = dxfile_desc.get("size")
 
-    # Warm up the download URL cache in the file handler, to avoid all
-    # worker threads trying to fetch it simultaneously
-    dxfile.get_download_url(project=project, **kwargs)
-
     offset = 0
     for part_id in parts_to_get:
         parts[part_id]["start"] = offset

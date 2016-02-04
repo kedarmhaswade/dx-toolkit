@@ -24,6 +24,7 @@ This remote file handler is a Python file-like object.
 from __future__ import print_function, unicode_literals, division, absolute_import
 
 import os, sys, logging, traceback, hashlib, copy, time
+from threading import Lock
 import concurrent.futures
 from multiprocessing import cpu_count
 
@@ -119,10 +120,9 @@ class DXFile(DXDataObject):
         self._write_bufsize = write_buffer_size
 
         # (download URL, download headers, expiry time)
-        #
-        # Written in a single tuple for atomicity since multiple threads are
-        # quite likely to be calling get_download_url
-        self._download_url_headers_expiry = None
+        # These are cached once for all download threads. This saves calls to the apiserver.
+        self._download_url, self._download_url_headers, self._download_url_expires = None, None, None
+        self._url_download_mutex = Lock()
 
         self._request_iterator, self._response_iterator = None, None
         self._http_threadpool_futures = set()
@@ -555,29 +555,29 @@ class DXFile(DXDataObject):
         if project is not None:
             args["project"] = project
 
-        need_download_url = False
-        try:
-            download_url, download_url_headers, download_url_expires = self._download_url_headers_expiry
-        except TypeError:
-            # URL never previously retrieved: fails to unpack the tuple
-            need_download_url = True
-        else:
-            # URL previously retrieved but it has expired
-            if download_url_expires < time.time():
-                need_download_url = True
+        self._url_download_mutex.acquire()
+        if self._download_url is None or self._download_url_expires < time.time():
+            # The idea here is to cache a download URL for the entire file, that will
+            # be good for a few minutes. This avoids each thread having to ask the
+            # server for a URL, increasing server load.
+            #
+            # To avoid thread race conditions, this check/update procedure is protected
+            # with a lock.
 
-        if need_download_url:
             # logging.debug("Download URL unset or expired, requesting a new one")
             if "timeout" not in kwargs:
                 kwargs["timeout"] = FILE_REQUEST_TIMEOUT
             resp = dxpy.api.file_download(self._dxid, args, **kwargs)
-            download_url = resp["url"]
-            download_url_headers = resp.get("headers", {})
-            download_url_expires = time.time() + duration - 60  # Try to account for drift
-            self._download_url_headers_expiry = (download_url, download_url_headers, download_url_expires)
+            self._download_url = resp["url"]
+            self._download_url_headers = resp.get("headers", {})
+            self._download_url_expires = time.time() + duration - 60 # Try to account for drift
 
-        # Make a defensive copy of headers dict
-        return download_url, dict(download_url_headers)
+        # Make a defensive copy of headers dict, because it is a mutable dictionary.
+        retval_download_url = self._download_url
+        retval_download_url_headers = copy.copy(self._download_url_headers)
+        self._url_download_mutex.release()
+
+        return retval_download_url, retval_download_url_headers
 
     def _generate_read_requests(self, start_pos=0, end_pos=None, project=None, **kwargs):
         # project=None means no hint is to be supplied to the apiserver. It is
