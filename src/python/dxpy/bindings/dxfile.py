@@ -118,7 +118,12 @@ class DXFile(DXDataObject):
         self._read_bufsize = read_buffer_size
         self._write_bufsize = write_buffer_size
 
-        self._download_url, self._download_url_headers, self._download_url_expires = None, None, None
+        # (download URL, download headers, expiry time)
+        #
+        # Written in a single tuple for atomicity since multiple threads are
+        # quite likely to be calling get_download_url
+        self._download_url_headers_expiry = None
+
         self._request_iterator, self._response_iterator = None, None
         self._http_threadpool_futures = set()
 
@@ -549,15 +554,30 @@ class DXFile(DXDataObject):
             args["filename"] = filename
         if project is not None:
             args["project"] = project
-        if self._download_url is None or self._download_url_expires < time.time():
+
+        need_download_url = False
+        try:
+            download_url, download_url_headers, download_url_expires = self._download_url_headers_expiry
+        except TypeError:
+            # URL never previously retrieved: fails to unpack the tuple
+            need_download_url = True
+        else:
+            # URL previously retrieved but it has expired
+            if download_url_expires < time.time():
+                need_download_url = True
+
+        if need_download_url:
             # logging.debug("Download URL unset or expired, requesting a new one")
             if "timeout" not in kwargs:
                 kwargs["timeout"] = FILE_REQUEST_TIMEOUT
             resp = dxpy.api.file_download(self._dxid, args, **kwargs)
-            self._download_url = resp["url"]
-            self._download_url_headers = resp.get("headers", {})
-            self._download_url_expires = time.time() + duration - 60 # Try to account for drift
-        return self._download_url, self._download_url_headers
+            download_url = resp["url"]
+            download_url_headers = resp.get("headers", {})
+            download_url_expires = time.time() + duration - 60  # Try to account for drift
+            self._download_url_headers_expiry = (download_url, download_url_headers, download_url_expires)
+
+        # Make a defensive copy of headers dict
+        return download_url, dict(download_url_headers)
 
     def _generate_read_requests(self, start_pos=0, end_pos=None, project=None, **kwargs):
         # project=None means no hint is to be supplied to the apiserver. It is
@@ -586,7 +606,6 @@ class DXFile(DXDataObject):
 
         for chunk_start_pos, chunk_end_pos in chunk_ranges(start_pos, end_pos):
             url, headers = self.get_download_url(project=project, **kwargs)
-            headers = copy.copy(headers)
             headers['Range'] = "bytes=" + str(chunk_start_pos) + "-" + str(chunk_end_pos)
             yield dxpy.DXHTTPRequest, [url, ''], {'method': 'GET',
                                                   'headers': headers,
