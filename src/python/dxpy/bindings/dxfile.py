@@ -573,8 +573,9 @@ class DXFile(DXDataObject):
                 self._download_url_headers = resp.get("headers", {})
                 self._download_url_expires = time.time() + duration - 60 # Try to account for drift
 
-            # Make a defensive copy of headers dict, because it is a mutable dictionary.
-            retval_download_url = self._download_url
+
+            # Make a copies, so we don't update these variables midflight
+            retval_download_url = copy.copy(self._download_url)
             retval_download_url_headers = copy.copy(self._download_url_headers)
         finally:
             self._url_download_mutex.release()
