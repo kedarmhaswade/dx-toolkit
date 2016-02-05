@@ -571,8 +571,7 @@ class DXFile(DXDataObject):
                 resp = dxpy.api.file_download(self._dxid, args, **kwargs)
                 self._download_url = resp["url"]
                 self._download_url_headers = resp.get("headers", {})
-                self._download_url_expires = time.time() + duration - 60 # Try to account for drift
-
+                self._download_url_expires = time.time() + duration - 60   # Try to account for drift
 
             # Make a copies, so we don't update these variables midflight
             retval_download_url = copy.copy(self._download_url)
