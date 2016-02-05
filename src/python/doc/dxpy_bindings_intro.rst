@@ -96,9 +96,11 @@ that interact with the API server may raise the exception
 
 .. rubric:: Thread safety
 
-Dxpy data objects are designed for single threaded use.
-However, it is possible to use multiple threads on different
-objects. For example, using two threads to modify an applet is not
-allowed, but using two threads to download two different files is
-correct.
+Dxpy data objects are designed for single threaded use.  However, it
+is possible to use multiple threads on different objects. For example,
+using two threads to modify an applet is not allowed, but using two
+threads to download two different files is correct. Generally
+speaking, we recommend using a single python thread to access dxpy;
+the main multi-threaded access pattern we test for is parallel file
+download.
 
