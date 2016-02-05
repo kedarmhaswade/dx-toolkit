@@ -93,3 +93,12 @@ reading, writing, downloading, and uploading files.
 Though not explicitly documented in each method as such, all methods
 that interact with the API server may raise the exception
 :exc:`dxpy.exceptions.DXAPIError`.
+
+.. rubric:: Thread safety
+
+Dxpy data objects are designed for single threaded use.
+However, it is possible to use multiple threads on different
+objects. For example, using two threads to modify an applet is not
+allowed, but using two threads to download two different files is
+correct.
+
