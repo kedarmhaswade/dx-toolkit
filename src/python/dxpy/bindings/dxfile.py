@@ -578,8 +578,6 @@ class DXFile(DXDataObject):
             retval_download_url_headers = copy.copy(self._download_url_headers)
         finally:
             self._url_download_mutex.release()
-        except:
-            raise
 
         return retval_download_url, retval_download_url_headers
 
