@@ -119,9 +119,11 @@ class DXFile(DXDataObject):
         self._read_bufsize = read_buffer_size
         self._write_bufsize = write_buffer_size
 
-        # (download URL, download headers, expiry time)
         # These are cached once for all download threads. This saves calls to the apiserver.
         self._download_url, self._download_url_headers, self._download_url_expires = None, None, None
+
+        # This lock protects accesses to the above three variables, ensuring that they would
+        # be checked and changed atomically. This protects against thread race conditions.
         self._url_download_mutex = Lock()
 
         self._request_iterator, self._response_iterator = None, None
@@ -555,8 +557,7 @@ class DXFile(DXDataObject):
         if project is not None:
             args["project"] = project
 
-        try:
-            self._url_download_mutex.acquire()
+        with self._url_download_mutex:
             if self._download_url is None or self._download_url_expires < time.time():
                 # The idea here is to cache a download URL for the entire file, that will
                 # be good for a few minutes. This avoids each thread having to ask the
@@ -573,11 +574,11 @@ class DXFile(DXDataObject):
                 self._download_url_headers = resp.get("headers", {})
                 self._download_url_expires = time.time() + duration - 60   # Try to account for drift
 
-            # Make a copies, so we don't update these variables midflight
-            retval_download_url = copy.copy(self._download_url)
+            # Make a copies, ensuring each thread has its own copy.
+            # Note: python threads are immutable, so we can give a reference to the download
+            #   url.
+            retval_download_url = self._download_url
             retval_download_url_headers = copy.copy(self._download_url_headers)
-        finally:
-            self._url_download_mutex.release()
 
         return retval_download_url, retval_download_url_headers
 

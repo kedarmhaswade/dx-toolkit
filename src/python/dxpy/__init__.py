@@ -197,8 +197,7 @@ def _get_pool_manager(verify, cert_file, key_file):
     # Multiple threads can ask for the pool, so we need to protect
     # access and make it thread safe.
     global _pool_manager
-    try:
-        _pool_mutex.acquire()
+    with _pool_mutex:
         default_pool_args = dict(maxsize=32,
                                  cert_reqs=ssl.CERT_REQUIRED,
                                  ca_certs=_default_certs,
@@ -217,8 +216,7 @@ def _get_pool_manager(verify, cert_file, key_file):
                     pool_args.update(cert_reqs=ssl.CERT_NONE, ca_certs=None)
                     urllib3.disable_warnings()
                 return urllib3.PoolManager(**pool_args)
-    finally:
-        _pool_mutex.release()
+
 
 def _process_method_url_headers(method, url, headers):
     if callable(url):
