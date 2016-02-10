@@ -199,6 +199,7 @@ _pool_manager = None
 
 def _get_pool_manager(verify, cert_file, key_file):
     global _pool_manager
+    global _pool_mutex
     default_pool_args = dict(maxsize=32,
                              cert_reqs=ssl.CERT_REQUIRED,
                              ca_certs=_default_certs,
