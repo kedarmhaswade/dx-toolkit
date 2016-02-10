@@ -196,7 +196,7 @@ _expected_exceptions = exceptions.network_exceptions + \
 # access and make it thread safe.
 _pool_mutex = Lock()
 _pool_manager = None
-
+_pool_reset_counter = 0
 
 def _get_pool_manager(verify, cert_file, key_file):
     global _pool_manager
@@ -225,12 +225,20 @@ def _get_pool_manager(verify, cert_file, key_file):
 
 # Reset the global pool structure. This is used when the pool becomes corrupted,
 # a scenario we do not fully understand yet.
+#
+# Return True if the pool was reset, False otherwise.
 def _pool_manager_reset():
     global _pool_manager
     with _pool_mutex:
         if _pool_manager is not None:
+            if pool_reset_counter >= DEFAULT_POOL_RESETS:
+                return False
             _pool_manager.clear()
             _pool_manager = None
+            _pool_reset_counter += 1
+            logger.warn("%s %s: ClosedPoolError, resetting the pool (%d time)",
+                        method, url, _pool_reset_counter)
+            return True
 
 def _process_method_url_headers(method, url, headers):
     if callable(url):
@@ -487,7 +495,6 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
         rewind_input_buffer_offset = data.tell()
 
     try_index = 0
-    pool_reset_counter = 0
     while True:
         # Wrap the response, so we can change it in the process-request function.
         # A list allows changing its content.
@@ -500,11 +507,8 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
         except urllib3.exceptions.ClosedPoolError:
             # Something is wrong with the pool structure. We do not fully
             # understand how this could happen, but we try to work around it by
-            # resetting it up to a fixed number of times.
-            pool_reset_counter += 1
-            if pool_reset_counter < DEFAULT_POOL_RESETS:
-                logger.warn("%s %s: ClosedPoolError, resetting the pool", method, url)
-                _pool_manager_reset()
+            # resetting the pool.
+            if _pool_manager_reset():
                 continue
             raise
         except Exception as e:
