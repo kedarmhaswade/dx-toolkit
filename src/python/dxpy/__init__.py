@@ -200,6 +200,7 @@ _pool_reset_counter = 0
 
 def _get_pool_manager(verify, cert_file, key_file):
     global _pool_manager
+    global _pool_mutex
     default_pool_args = dict(maxsize=32,
                              cert_reqs=ssl.CERT_REQUIRED,
                              ca_certs=_default_certs,
@@ -229,6 +230,8 @@ def _get_pool_manager(verify, cert_file, key_file):
 # Return True if the pool was reset, False otherwise.
 def _pool_manager_reset():
     global _pool_manager
+    global _pool_mutex
+    global _pool_reset_counter
     with _pool_mutex:
         if _pool_manager is not None:
             if pool_reset_counter >= DEFAULT_POOL_RESETS:
