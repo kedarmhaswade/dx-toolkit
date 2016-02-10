@@ -234,7 +234,7 @@ def _pool_manager_reset():
     global _pool_reset_counter
     with _pool_mutex:
         if _pool_manager is not None:
-            if pool_reset_counter >= DEFAULT_POOL_RESETS:
+            if _pool_reset_counter >= DEFAULT_POOL_RESETS:
                 return False
             _pool_manager.clear()
             _pool_manager = None
