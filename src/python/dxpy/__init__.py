@@ -135,6 +135,7 @@ from requests.auth import AuthBase
 from requests.packages import urllib3
 from requests.packages.urllib3.packages.ssl_match_hostname import match_hostname
 from .compat import USING_PYTHON2, expanduser, BadStatusLine
+from threading import Lock
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -173,6 +174,7 @@ APISERVER_PORT = DEFAULT_APISERVER_PORT
 DEFAULT_RETRIES = 6
 DEFAULT_TIMEOUT = 600
 DEFAULT_RETRY_AFTER_503_INTERVAL = 60
+DEFAULT_POOL_RESETS = 3
 
 _DEBUG = 0  # debug verbosity level
 _UPGRADE_NOTIFY = True
@@ -186,14 +188,17 @@ _default_headers = requests.utils.default_headers()
 _default_headers['DNAnexus-API'] = API_VERSION
 _default_headers['User-Agent'] = USER_AGENT
 _default_timeout = urllib3.util.timeout.Timeout(connect=DEFAULT_TIMEOUT, read=DEFAULT_TIMEOUT)
-_pool_manager = None
 _RequestForAuth = namedtuple('_RequestForAuth', 'method url headers')
 _expected_exceptions = exceptions.network_exceptions + \
                        (exceptions.DXAPIError, BadStatusLine, exceptions.BadJSONInReply)
 
+# Multiple threads can ask for the pool, so we need to protect
+# access and make it thread safe.
+_pool_mutex = Lock()
+_pool_manager = None
 
-# Create a pool structure, and cache it.
-def _get_pool_manager_lo(verify, cert_file, key_file):
+
+def _get_pool_manager(verify, cert_file, key_file):
     global _pool_manager
     default_pool_args = dict(maxsize=32,
                              cert_reqs=ssl.CERT_REQUIRED,
@@ -201,12 +206,13 @@ def _get_pool_manager_lo(verify, cert_file, key_file):
                              headers=_default_headers,
                              timeout=_default_timeout)
     if cert_file is None and verify is None and 'DX_CA_CERT' not in os.environ:
-        if _pool_manager is None:
-            _pool_manager = urllib3.PoolManager(**default_pool_args)
-        return _pool_manager
+        with _pool_mutex:
+            if _pool_manager is None:
+                _pool_manager = urllib3.PoolManager(**default_pool_args)
+            return _pool_manager
     else:
-        # An uncommon case, for testing (?). It creates a new pool every
-        # call, and does not cache it.
+        # This is the uncommon case, normally, we want to cache the pool
+        # manager.
         pool_args = dict(default_pool_args,
                          cert_file=cert_file,
                          key_file=key_file,
@@ -217,18 +223,14 @@ def _get_pool_manager_lo(verify, cert_file, key_file):
         return urllib3.PoolManager(**pool_args)
 
 
-# Wrap the basic pool structure with some safety retries.
-# There is a possibility, which we do not fully understand at the moment,
-# to encounter a ClosedPoolError exception. To get around this, we reset
-# the pool and try again.
-def _get_pool_manager(verify, cert_file, key_file):
-    try:
-        return _get_pool_manager_lo(verify, cert_file, key_file)
-    except ClosedPoolError:
-        global _pool_manager
-        _pool_manager = None
-        return _get_pool_manager_lo(verify, cert_file, key_file)
-
+# Reset the global pool structure. This is used when the pool becomes corrupted,
+# a scenario we do not fully understand yet.
+def _pool_manager_reset():
+    global _pool_manager
+    with _pool_mutex:
+        if _pool_manager is not None:
+            _pool_manager.clear()
+            _pool_manager = None
 
 def _process_method_url_headers(method, url, headers):
     if callable(url):
@@ -485,6 +487,7 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
         rewind_input_buffer_offset = data.tell()
 
     try_index = 0
+    pool_reset_counter = 0
     while True:
         # Wrap the response, so we can change it in the process-request function.
         # A list allows changing its content.
@@ -494,6 +497,16 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
         try:
             return _process_request(method, url, headers, want_full_response, decode_response_body, timeout,
                                     data, response_wrap, pool, **kwargs)
+        except urllib3.exceptions.ClosedPoolError:
+            # Something is wrong with the pool structure. We do not fully
+            # understand how this could happen, but we try to work around it by
+            # resetting it up to a fixed number of times.
+            pool_reset_counter += 1
+            if pool_reset_counter < DEFAULT_POOL_RESETS:
+                logger.warn("%s %s: ClosedPoolError, resetting the pool", method, url)
+                _pool_manager_reset()
+                continue
+            raise
         except Exception as e:
             response = response_wrap[0]
             # Avoid reusing connections in the pool, since they may be
